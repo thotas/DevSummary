@@ -1,0 +1,148 @@
+import Foundation
+
+struct GitRepo: Identifiable, Hashable {
+    let id = UUID()
+    let name: String
+    let path: String
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(path)
+    }
+
+    static func == (lhs: GitRepo, rhs: GitRepo) -> Bool {
+        lhs.path == rhs.path
+    }
+}
+
+struct GitCommit: Identifiable {
+    let id = UUID()
+    let hash: String
+    let author: String
+    let email: String
+    let date: Date
+    let subject: String
+    let body: String
+    let repo: String
+    let repoPath: String
+}
+
+enum CommitType: String, CaseIterable {
+    case feature, fix, refactor, docs, test, style, deps, config, remove, setup, other
+
+    var label: String {
+        switch self {
+        case .feature: return "Features"
+        case .fix: return "Fixes"
+        case .refactor: return "Improvements"
+        case .docs: return "Documentation"
+        case .test: return "Testing"
+        case .style: return "Styling"
+        case .deps: return "Dependencies"
+        case .config: return "Configuration"
+        case .remove: return "Removals"
+        case .setup: return "Project Setup"
+        case .other: return "Other"
+        }
+    }
+
+    var verb: String {
+        switch self {
+        case .feature: return "Added"
+        case .fix: return "Fixed"
+        case .refactor: return "Improved"
+        case .docs: return "Updated docs for"
+        case .test: return "Added tests for"
+        case .style: return "Styled"
+        case .deps: return "Updated"
+        case .config: return "Configured"
+        case .remove: return "Removed"
+        case .setup: return "Set up"
+        case .other: return "Worked on"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .feature: return "blue"
+        case .fix: return "red"
+        case .refactor: return "purple"
+        case .docs: return "teal"
+        case .test: return "green"
+        case .style: return "pink"
+        case .deps: return "orange"
+        case .config: return "yellow"
+        case .remove: return "red"
+        case .setup: return "green"
+        case .other: return "gray"
+        }
+    }
+}
+
+enum TimePeriod: String, CaseIterable, Identifiable {
+    case oneWeek = "1w"
+    case twoWeeks = "2w"
+    case oneMonth = "1m"
+    case threeMonths = "3m"
+    case sixMonths = "6m"
+    case oneYear = "1y"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .oneWeek: return "Past Week"
+        case .twoWeeks: return "Past 2 Weeks"
+        case .oneMonth: return "Past Month"
+        case .threeMonths: return "Past 3 Months"
+        case .sixMonths: return "Past 6 Months"
+        case .oneYear: return "Past Year"
+        }
+    }
+
+    var days: Int {
+        switch self {
+        case .oneWeek: return 7
+        case .twoWeeks: return 14
+        case .oneMonth: return 30
+        case .threeMonths: return 90
+        case .sixMonths: return 180
+        case .oneYear: return 365
+        }
+    }
+
+    var descriptionText: String {
+        switch self {
+        case .oneWeek: return "this past week"
+        case .twoWeeks: return "the past two weeks"
+        case .oneMonth: return "this past month"
+        case .threeMonths: return "the past three months"
+        case .sixMonths: return "the past six months"
+        case .oneYear: return "this past year"
+        }
+    }
+}
+
+struct RepoSummary: Identifiable {
+    let id = UUID()
+    let repo: String
+    let commitCount: Int
+    let summaryLines: [String]
+    let types: [CommitType: Int]
+    let latestCommit: Date
+}
+
+struct DailyActivity: Identifiable {
+    let id = UUID()
+    let date: Date
+    let count: Int
+    let repos: [String]
+}
+
+struct Summary {
+    let overview: String
+    let repoSummaries: [RepoSummary]
+    let dailyActivity: [DailyActivity]
+    let totalCommits: Int
+    let activeRepos: Int
+    let activeDays: Int
+}

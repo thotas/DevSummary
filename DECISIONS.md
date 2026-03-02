@@ -1,49 +1,55 @@
 # Decisions
 
-## Platform: Electron Desktop App
-- **Chosen:** Electron
-- **Alternatives considered:** SwiftUI native macOS app, Tauri, local web app
-- **Rationale:** Electron provides real desktop integration (titlebar, dark mode, vibrancy) with React's fast UI development. SwiftUI would be more native but dramatically slower to build from CLI. Tauri wasn't installed. A local web app wouldn't feel like a real app.
-- **Tradeoffs:** Larger binary size (~150MB) vs native. Acceptable for a developer tool.
+## Platform: Native macOS with SwiftUI
+- **Chosen:** Native macOS app using SwiftUI
+- **Alternatives considered:** Electron + React, Tauri, AppKit-only
+- **Rationale:** SwiftUI provides the most native macOS experience — system materials, vibrancy, native controls, NavigationSplitView, dark mode integration. Zero web overhead. AppKit was considered but SwiftUI's declarative approach is more productive and modern.
+- **Tradeoffs:** macOS-only (no Windows/Linux). Acceptable for a developer tool targeting Mac users.
 
-## Frontend: React 19 + Vite
-- **Chosen:** React 19 with Vite bundler
-- **Alternatives considered:** Svelte, vanilla JS, Vue
-- **Rationale:** React has the richest ecosystem for animations (Framer Motion) and component patterns. Vite provides sub-second HMR and fast builds.
-- **Tradeoffs:** Slightly heavier than Svelte but much more library support.
+## Build System: Swift Package Manager
+- **Chosen:** SPM with executable target
+- **Alternatives considered:** Xcode project, CMake, Bazel
+- **Rationale:** SPM is the standard Swift build system. No Xcode project file needed — builds from command line with `swift build`. The `.app` bundle is created by a simple shell script wrapping the executable.
+- **Tradeoffs:** No Xcode GUI for design iteration. Worth it for simplicity and CLI-first workflow.
+
+## Architecture: MVVM with Actor-based Services
+- **Chosen:** MVVM — Views observe a @MainActor ViewModel, which delegates to an actor-isolated GitService
+- **Alternatives considered:** MVC, TCA (The Composable Architecture), Redux-style
+- **Rationale:** MVVM is the natural pattern for SwiftUI's ObservableObject. The actor model for GitService provides safe concurrency without manual locking. TCA would be overkill for this scope.
+- **Tradeoffs:** Less formal than TCA but perfectly adequate for a focused single-window app.
+
+## Concurrency: Swift Concurrency (async/await + actors)
+- **Chosen:** GitService as an actor, TaskGroup for parallel repo scanning
+- **Alternatives considered:** GCD (DispatchQueue), Combine
+- **Rationale:** Swift Concurrency is the modern standard. Actors prevent data races. TaskGroup enables parallel git operations across repos. async/await makes the code readable.
+- **Tradeoffs:** Requires Swift 6.0+ with strict concurrency.
+
+## Git Execution: Foundation Process (execFile equivalent)
+- **Chosen:** Foundation's Process class with direct executable path `/usr/bin/git`
+- **Alternatives considered:** libgit2 binding, shell via /bin/sh, git2-rs FFI
+- **Rationale:** Process with executableURL is the safe equivalent of execFile — no shell injection risk. Direct path to git binary avoids shell interpretation. Simple, no dependencies.
+- **Tradeoffs:** Spawns a subprocess per git command. Fast enough for this use case.
 
 ## Summarization: Template-Based Engine
-- **Chosen:** Template-based commit categorization and natural language generation
+- **Chosen:** Pattern-matching categorization + template-based natural language generation
 - **Alternatives considered:** Claude API integration, local LLM, simple aggregation
-- **Rationale:** Works fully offline with zero configuration. No API keys needed. Instant results. AI integration can be added later as an optional enhancement.
-- **Tradeoffs:** Summaries are less nuanced than AI-generated ones, but they're accurate and immediate.
+- **Rationale:** Works fully offline with zero configuration. No API keys needed. Instant results. AI integration can be added later as optional enhancement.
+- **Tradeoffs:** Summaries are less nuanced than AI-generated ones, but accurate and immediate.
 
-## Commit Categorization: Pattern Matching
-- **Chosen:** Regex-based pattern matching against conventional commit prefixes and common keywords
-- **Alternatives considered:** ML classifier, keyword frequency analysis
-- **Rationale:** Conventional commits are widespread enough that pattern matching catches 80%+ of cases. The "other" category handles the rest gracefully.
-- **Tradeoffs:** Won't perfectly categorize unconventional commit messages.
+## UI Layout: NavigationSplitView
+- **Chosen:** NavigationSplitView with sidebar + detail
+- **Alternatives considered:** HSplitView, TabView, single-column
+- **Rationale:** NavigationSplitView is the standard macOS pattern for sidebar-detail apps (like Finder, Mail). Provides native resize handle, proper sidebar styling, and system materials.
+- **Tradeoffs:** None significant — this is the correct pattern for this app type.
 
-## Repo Discovery: Filesystem Walk
-- **Chosen:** Recursive directory walk with depth limit (4 levels) from configurable root paths
-- **Alternatives considered:** User-specified repo list, global gitconfig parsing
-- **Rationale:** Auto-discovery is the zero-config experience. Most developers keep repos under a few root directories.
-- **Tradeoffs:** Initial scan takes a moment. Doesn't find repos in unexpected locations.
+## Dependencies: Zero External
+- **Chosen:** No third-party dependencies
+- **Alternatives considered:** Charts framework, SwiftUI-Flow, etc.
+- **Rationale:** Everything needed (layout, charts, materials) is available in SwiftUI natively. Custom FlowLayout handles tag wrapping. Activity chart is simple bars. No dependency means no version conflicts, no supply chain risk, instant builds.
+- **Tradeoffs:** Custom FlowLayout implementation required (~30 lines), but trivial.
 
-## Architecture: Process Separation
-- **Chosen:** Electron main/renderer process split with IPC bridge
-- **Alternatives considered:** Single process, worker threads
-- **Rationale:** Standard Electron architecture. Git operations run in the main process without blocking the UI. Context isolation ensures security.
-- **Tradeoffs:** IPC adds slight complexity vs direct function calls.
-
-## Styling: CSS Custom Properties (Design Tokens)
-- **Chosen:** CSS custom properties with light/dark theme variants
-- **Alternatives considered:** Tailwind CSS, CSS-in-JS, styled-components
-- **Rationale:** Zero additional dependencies. Full control over the design system. Native CSS performance. Custom properties make theming trivial.
-- **Tradeoffs:** More manual than utility-first CSS but results in cleaner, more intentional styling.
-
-## Window Style: Hidden Inset Titlebar
-- **Chosen:** `titleBarStyle: 'hiddenInset'` with traffic light repositioning
-- **Alternatives considered:** Default titlebar, fully frameless
-- **Rationale:** Matches modern macOS app conventions (like Finder, Notes). The content flows up into the titlebar area for a premium feel while keeping native window controls.
-- **Tradeoffs:** macOS-specific. Other platforms get a standard titlebar.
+## Window Style: Unified Toolbar
+- **Chosen:** `.windowToolbarStyle(.unified(showsTitle: false))` with `.titleBar` window style
+- **Alternatives considered:** Hidden titlebar, plain titlebar, hiddenInset
+- **Rationale:** Unified toolbar gives the modern macOS look where the toolbar merges with the titlebar. No title text keeps it clean — the app name appears in the sidebar.
+- **Tradeoffs:** None — standard modern macOS convention.
