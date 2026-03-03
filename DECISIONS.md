@@ -1,55 +1,57 @@
 # Decisions
 
-## Platform: Native macOS with SwiftUI
-- **Chosen:** Native macOS app using SwiftUI
-- **Alternatives considered:** Electron + React, Tauri, AppKit-only
-- **Rationale:** SwiftUI provides the most native macOS experience — system materials, vibrancy, native controls, NavigationSplitView, dark mode integration. Zero web overhead. AppKit was considered but SwiftUI's declarative approach is more productive and modern.
-- **Tradeoffs:** macOS-only (no Windows/Linux). Acceptable for a developer tool targeting Mac users.
+## AI Backend: Ollama (Local)
+- **Chosen:** Ollama HTTP API at localhost:11434
+- **Alternatives considered:** Claude API, OpenAI API, no AI (template-only)
+- **Rationale:** User explicitly requested Ollama. Local-first means zero API costs, full privacy, works offline. The HTTP API is simple (POST /api/generate) and model selection is trivial.
+- **Tradeoffs:** Requires Ollama installed and running. Quality depends on chosen model.
 
-## Build System: Swift Package Manager
-- **Chosen:** SPM with executable target
-- **Alternatives considered:** Xcode project, CMake, Bazel
-- **Rationale:** SPM is the standard Swift build system. No Xcode project file needed — builds from command line with `swift build`. The `.app` bundle is created by a simple shell script wrapping the executable.
-- **Tradeoffs:** No Xcode GUI for design iteration. Worth it for simplicity and CLI-first workflow.
+## Default Model: llama3
+- **Chosen:** llama3 as default, user-configurable via Settings
+- **Alternatives considered:** gemma3:4b (faster), qwen2.5-coder (code-aware)
+- **Rationale:** llama3 is the most common Ollama model, good balance of quality and speed. User can switch to any installed model via the Settings panel.
+- **Tradeoffs:** Larger than gemma3 but better summary quality.
+
+## Summary Caching: JSON in Application Support
+- **Chosen:** JSON file at `~/Library/Application Support/DevSummary/summary_cache.json`
+- **Alternatives considered:** Core Data, SQLite, UserDefaults, in-memory only
+- **Rationale:** JSON is simple to inspect, debug, and version. Each cached entry stores the last commit hash — summaries are only regenerated when git changes are detected. No database overhead needed.
+- **Tradeoffs:** Slightly slower than SQLite for large caches, but cache size is tiny.
+
+## Cache Invalidation: Commit Hash Comparison
+- **Chosen:** Store latest commit hash per repo alongside cached summary. On fetch, compare HEAD hash — if different, regenerate.
+- **Alternatives considered:** Time-based expiry, file modification timestamps
+- **Rationale:** Commit hash comparison is the most accurate signal of actual changes. No false positives from clock skew or file touches.
+- **Tradeoffs:** None significant — this is the correct approach.
+
+## README Reading: Direct File Access
+- **Chosen:** Read README.md directly from the repo filesystem
+- **Alternatives considered:** GitHub API, git show HEAD:README.md
+- **Rationale:** Direct file read is instant, works offline, and handles uncommitted changes. Tries multiple filename variants (README.md, Readme.md, README.txt, etc.).
+- **Tradeoffs:** Won't find README if it's not in the repo root. Acceptable.
+
+## Summarization Strategy: Per-Project Then Overall
+- **Chosen:** Generate per-project AI summary first (using README + commits), then generate overall summary from project summaries
+- **Alternatives considered:** Single monolithic prompt, overall summary only
+- **Rationale:** Two-stage approach produces better results. Per-project summaries benefit from README context. Overall summary benefits from already-distilled project summaries. Also enables per-project cache invalidation.
+- **Tradeoffs:** More Ollama API calls, but each is small and they're cached.
+
+## Settings Storage: UserDefaults
+- **Chosen:** UserDefaults via AppSettings singleton
+- **Alternatives considered:** JSON config file, environment variables
+- **Rationale:** UserDefaults is the standard macOS pattern for app preferences. Simple, fast, persistent, no file management needed.
+- **Tradeoffs:** Not as inspectable as a JSON file, but appropriate for settings.
+
+## App Icon: Custom .icns from User-Provided PNG
+- **Chosen:** Convert user-provided PNG to .icns with all required sizes (16-1024px)
+- **Alternatives considered:** SF Symbol, no icon
+- **Rationale:** User provided a specific app icon image. macOS requires .icns format with multiple resolutions for proper display in Dock, Finder, and Spotlight.
+- **Tradeoffs:** None — this is the standard approach.
+
+## Platform: Native macOS with SwiftUI
+- **Chosen:** Native macOS app using SwiftUI (carried forward from v1)
+- **Rationale:** User explicitly requested native Mac app. No web wrappers.
 
 ## Architecture: MVVM with Actor-based Services
-- **Chosen:** MVVM — Views observe a @MainActor ViewModel, which delegates to an actor-isolated GitService
-- **Alternatives considered:** MVC, TCA (The Composable Architecture), Redux-style
-- **Rationale:** MVVM is the natural pattern for SwiftUI's ObservableObject. The actor model for GitService provides safe concurrency without manual locking. TCA would be overkill for this scope.
-- **Tradeoffs:** Less formal than TCA but perfectly adequate for a focused single-window app.
-
-## Concurrency: Swift Concurrency (async/await + actors)
-- **Chosen:** GitService as an actor, TaskGroup for parallel repo scanning
-- **Alternatives considered:** GCD (DispatchQueue), Combine
-- **Rationale:** Swift Concurrency is the modern standard. Actors prevent data races. TaskGroup enables parallel git operations across repos. async/await makes the code readable.
-- **Tradeoffs:** Requires Swift 6.0+ with strict concurrency.
-
-## Git Execution: Foundation Process (execFile equivalent)
-- **Chosen:** Foundation's Process class with direct executable path `/usr/bin/git`
-- **Alternatives considered:** libgit2 binding, shell via /bin/sh, git2-rs FFI
-- **Rationale:** Process with executableURL is the safe equivalent of execFile — no shell injection risk. Direct path to git binary avoids shell interpretation. Simple, no dependencies.
-- **Tradeoffs:** Spawns a subprocess per git command. Fast enough for this use case.
-
-## Summarization: Template-Based Engine
-- **Chosen:** Pattern-matching categorization + template-based natural language generation
-- **Alternatives considered:** Claude API integration, local LLM, simple aggregation
-- **Rationale:** Works fully offline with zero configuration. No API keys needed. Instant results. AI integration can be added later as optional enhancement.
-- **Tradeoffs:** Summaries are less nuanced than AI-generated ones, but accurate and immediate.
-
-## UI Layout: NavigationSplitView
-- **Chosen:** NavigationSplitView with sidebar + detail
-- **Alternatives considered:** HSplitView, TabView, single-column
-- **Rationale:** NavigationSplitView is the standard macOS pattern for sidebar-detail apps (like Finder, Mail). Provides native resize handle, proper sidebar styling, and system materials.
-- **Tradeoffs:** None significant — this is the correct pattern for this app type.
-
-## Dependencies: Zero External
-- **Chosen:** No third-party dependencies
-- **Alternatives considered:** Charts framework, SwiftUI-Flow, etc.
-- **Rationale:** Everything needed (layout, charts, materials) is available in SwiftUI natively. Custom FlowLayout handles tag wrapping. Activity chart is simple bars. No dependency means no version conflicts, no supply chain risk, instant builds.
-- **Tradeoffs:** Custom FlowLayout implementation required (~30 lines), but trivial.
-
-## Window Style: Unified Toolbar
-- **Chosen:** `.windowToolbarStyle(.unified(showsTitle: false))` with `.titleBar` window style
-- **Alternatives considered:** Hidden titlebar, plain titlebar, hiddenInset
-- **Rationale:** Unified toolbar gives the modern macOS look where the toolbar merges with the titlebar. No title text keeps it clean — the app name appears in the sidebar.
-- **Tradeoffs:** None — standard modern macOS convention.
+- **Chosen:** MVVM with three actor services: GitService, OllamaService, CacheService
+- **Rationale:** Clean separation. Each actor is thread-safe. ViewModel orchestrates the three services and manages all UI state.

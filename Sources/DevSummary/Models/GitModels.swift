@@ -60,22 +60,6 @@ enum CommitType: String, CaseIterable {
         case .other: return "Worked on"
         }
     }
-
-    var color: String {
-        switch self {
-        case .feature: return "blue"
-        case .fix: return "red"
-        case .refactor: return "purple"
-        case .docs: return "teal"
-        case .test: return "green"
-        case .style: return "pink"
-        case .deps: return "orange"
-        case .config: return "yellow"
-        case .remove: return "red"
-        case .setup: return "green"
-        case .other: return "gray"
-        }
-    }
 }
 
 enum TimePeriod: String, CaseIterable, Identifiable {
@@ -122,13 +106,18 @@ enum TimePeriod: String, CaseIterable, Identifiable {
     }
 }
 
-struct RepoSummary: Identifiable {
+struct ProjectSummary: Identifiable {
     let id = UUID()
     let repo: String
+    let repoPath: String
     let commitCount: Int
-    let summaryLines: [String]
     let types: [CommitType: Int]
     let latestCommit: Date
+    let readme: String?
+    let aiSummary: String?
+    let isGenerating: Bool
+    let commitLines: [String]
+    let latestCommitHash: String
 }
 
 struct DailyActivity: Identifiable {
@@ -139,8 +128,9 @@ struct DailyActivity: Identifiable {
 }
 
 struct Summary {
-    let overview: String
-    let repoSummaries: [RepoSummary]
+    let overallAISummary: String?
+    let isGeneratingOverall: Bool
+    let projectSummaries: [ProjectSummary]
     let dailyActivity: [DailyActivity]
     let totalCommits: Int
     let activeRepos: Int

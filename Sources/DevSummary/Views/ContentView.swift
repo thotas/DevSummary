@@ -21,5 +21,8 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
+        .sheet(isPresented: $viewModel.showSettings) {
+            SettingsView()
+        }
     }
 }

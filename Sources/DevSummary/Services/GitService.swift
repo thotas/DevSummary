@@ -9,8 +9,8 @@ actor GitService {
         var seen = Set<String>()
 
         for scanPath in scanPaths {
-            let url = URL(fileURLWithPath: scanPath)
             guard FileManager.default.fileExists(atPath: scanPath) else { continue }
+            let url = URL(fileURLWithPath: scanPath)
             await walkForGitRepos(directory: url, depth: 0, repos: &repos, seen: &seen)
         }
 
@@ -27,7 +27,6 @@ actor GitService {
             options: [.skipsHiddenFiles]
         ) else { return }
 
-        // Check for .git in this directory
         let gitDir = directory.appendingPathComponent(".git")
         if fm.fileExists(atPath: gitDir.path) {
             let repoPath = directory.path
@@ -43,7 +42,6 @@ actor GitService {
             guard let isDir = try? entry.resourceValues(forKeys: [.isDirectoryKey]).isDirectory, isDir else { continue }
             let name = entry.lastPathComponent
             if skipDirs.contains(name) { continue }
-
             await walkForGitRepos(directory: entry, depth: depth + 1, repos: &repos, seen: &seen)
         }
     }
@@ -96,17 +94,28 @@ actor GitService {
             guard let date = dateFormatter.date(from: dateStr) else { continue }
 
             commits.append(GitCommit(
-                hash: hash,
-                author: author,
-                email: email,
-                date: date,
-                subject: subject,
-                body: body,
-                repo: repoName,
-                repoPath: repoPath
+                hash: hash, author: author, email: email, date: date,
+                subject: subject, body: body, repo: repoName, repoPath: repoPath
             ))
         }
         return commits
+    }
+
+    func readReadme(repoPath: String) -> String? {
+        let fm = FileManager.default
+        let candidates = ["README.md", "README.MD", "readme.md", "README.txt", "README", "Readme.md"]
+        for name in candidates {
+            let path = (repoPath as NSString).appendingPathComponent(name)
+            if fm.fileExists(atPath: path), let content = try? String(contentsOfFile: path, encoding: .utf8) {
+                return String(content.prefix(3000))
+            }
+        }
+        return nil
+    }
+
+    func getLatestCommitHash(repoPath: String) -> String? {
+        let args = ["rev-parse", "HEAD"]
+        return runGit(args: args, in: repoPath)?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private nonisolated func runGit(args: [String], in directory: String) -> String? {
@@ -122,23 +131,11 @@ actor GitService {
         do {
             try process.run()
             process.waitUntilExit()
-
             guard process.terminationStatus == 0 else { return nil }
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
             return String(data: data, encoding: .utf8)
         } catch {
             return nil
         }
-    }
-
-    static var defaultScanPaths: [String] {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        return [
-            "\(home)/Development",
-            "\(home)/Projects",
-            "\(home)/Code",
-            "\(home)/repos",
-            "\(home)/src",
-        ]
     }
 }

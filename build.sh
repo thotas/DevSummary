@@ -2,7 +2,6 @@
 set -euo pipefail
 
 APP_NAME="DevSummary"
-BUNDLE_ID="com.thotas.devsummary"
 BUILD_DIR=".build/release"
 APP_DIR="${APP_NAME}.app"
 CONTENTS="${APP_DIR}/Contents"
@@ -19,6 +18,12 @@ mkdir -p "${MACOS}" "${RESOURCES}"
 # Copy executable
 cp "${BUILD_DIR}/${APP_NAME}" "${MACOS}/${APP_NAME}"
 
+# Copy app icon
+if [ -f "Assets/AppIcon.icns" ]; then
+    cp "Assets/AppIcon.icns" "${RESOURCES}/AppIcon.icns"
+    echo "App icon included."
+fi
+
 # Create Info.plist
 cat > "${CONTENTS}/Info.plist" << 'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -34,13 +39,15 @@ cat > "${CONTENTS}/Info.plist" << 'PLIST'
     <key>CFBundleDisplayName</key>
     <string>DevSummary</string>
     <key>CFBundleVersion</key>
-    <string>1.0.0</string>
+    <string>2.0.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>2.0.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>NSHighResolutionCapable</key>
@@ -51,6 +58,11 @@ cat > "${CONTENTS}/Info.plist" << 'PLIST'
     <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.developer-tools</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
 </dict>
 </plist>
 PLIST
