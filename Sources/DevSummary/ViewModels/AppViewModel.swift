@@ -96,7 +96,7 @@ final class AppViewModel: ObservableObject {
             ))
         }
 
-        projectSummaries.sort { $0.commitCount > $1.commitCount }
+        projectSummaries.sort { $0.latestCommit > $1.latestCommit }
 
         // Check overall cache
         let projectHashes = Dictionary(uniqueKeysWithValues: projectSummaries.map { ($0.repoPath, $0.latestCommitHash) })

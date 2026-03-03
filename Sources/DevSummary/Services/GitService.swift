@@ -14,7 +14,7 @@ actor GitService {
             await walkForGitRepos(directory: url, depth: 0, repos: &repos, seen: &seen)
         }
 
-        return repos.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        return repos.sorted { ($0.latestCommitDate ?? .distantPast) > ($1.latestCommitDate ?? .distantPast) }
     }
 
     private func walkForGitRepos(directory: URL, depth: Int, repos: inout [GitRepo], seen: inout Set<String>) async {
@@ -33,7 +33,8 @@ actor GitService {
             if !seen.contains(repoPath) {
                 seen.insert(repoPath)
                 let name = directory.lastPathComponent
-                repos.append(GitRepo(name: name, path: repoPath))
+                let latestDate = getLatestCommitDate(repoPath: repoPath)
+                repos.append(GitRepo(name: name, path: repoPath, latestCommitDate: latestDate))
             }
             return
         }
@@ -111,6 +112,15 @@ actor GitService {
             }
         }
         return nil
+    }
+
+    private func getLatestCommitDate(repoPath: String) -> Date? {
+        let args = ["log", "-1", "--format=%aI"]
+        guard let output = runGit(args: args, in: repoPath)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !output.isEmpty else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: output)
     }
 
     func getLatestCommitHash(repoPath: String) -> String? {

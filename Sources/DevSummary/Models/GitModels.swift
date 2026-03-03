@@ -4,6 +4,7 @@ struct GitRepo: Identifiable, Hashable {
     let id = UUID()
     let name: String
     let path: String
+    let latestCommitDate: Date?
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(path)
