@@ -59,7 +59,7 @@ actor OllamaService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 120
+        request.timeoutInterval = 180
 
         let body = GenerateRequest(
             model: model,
@@ -122,14 +122,14 @@ actor OllamaService {
         }
 
         let prompt = """
-        You are a developer summarizer. Based on the project summaries below, write a single cohesive paragraph (3-5 sentences) summarizing all development activity in plain English. Cover the main themes, the most significant work, and the overall picture. Be specific about project names and what was done. No bullet points. No markdown. Just flowing text.
+        You are a developer summarizer. Based on the project summaries below, write a comprehensive summary paragraph covering ALL projects listed. The summary should be detailed enough that every single project is mentioned by name with what was done on it. It's okay for this to be a longer paragraph (5-10 sentences) — completeness is more important than brevity. Be specific about each project name and what was worked on. No bullet points. No markdown. Just flowing text.
 
         \(context)
 
         Overall summary:
         """
 
-        return try await generate(model: AppSettings.shared.ollamaModel, prompt: prompt, maxTokens: 400)
+        return try await generate(model: AppSettings.shared.ollamaModel, prompt: prompt, maxTokens: 800)
     }
 }
 

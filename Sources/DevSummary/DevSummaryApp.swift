@@ -9,6 +9,7 @@ struct DevSummaryApp: App {
             ContentView()
                 .environmentObject(viewModel)
                 .frame(minWidth: 900, minHeight: 600)
+                .preferredColorScheme(.dark)
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified(showsTitle: false))
