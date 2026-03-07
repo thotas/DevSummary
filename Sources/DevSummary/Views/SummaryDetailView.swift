@@ -60,6 +60,11 @@ struct SummaryDetailView: View {
 
             Spacer()
 
+            // Quick Period Pills
+            PeriodPickerPills(period: $viewModel.period) { newPeriod in
+                viewModel.changePeriod(newPeriod)
+            }
+
             HStack(spacing: 8) {
                 if viewModel.ollamaAvailable {
                     Label("Ollama", systemImage: "brain")
@@ -914,6 +919,72 @@ struct CommitRow: View {
         }
         .buttonStyle(.plain)
         .help("Click to view commit details")
+    }
+}
+
+// MARK: - Period Picker Pills
+
+struct PeriodPickerPills: View {
+    @Binding var period: TimePeriod
+    let onSelect: (TimePeriod) -> Void
+
+    // Most commonly used periods for quick access
+    private let quickPeriods: [TimePeriod] = [.oneDay, .oneWeek, .oneMonth, .threeMonths]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(quickPeriods, id: \.self) { timePeriod in
+                PeriodPill(
+                    period: timePeriod,
+                    isSelected: period == timePeriod
+                ) {
+                    onSelect(timePeriod)
+                }
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(Color.secondary.opacity(0.08), in: Capsule())
+    }
+}
+
+struct PeriodPill: View {
+    let period: TimePeriod
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    @State private var isHovering = false
+
+    private var displayLabel: String {
+        switch period {
+        case .oneDay: return "24h"
+        case .oneWeek: return "1w"
+        case .oneMonth: return "1m"
+        case .threeMonths: return "3m"
+        default: return period.rawValue
+        }
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            Text(displayLabel)
+                .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
+                .foregroundStyle(isSelected ? .white : .secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(
+                    isSelected ? Color.accentColor :
+                        (isHovering ? Color.secondary.opacity(0.15) : Color.clear),
+                    in: Capsule()
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+        .help("Show \(period.descriptionText)")
     }
 }
 
