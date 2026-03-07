@@ -16,13 +16,27 @@ final class AppViewModel: ObservableObject {
     @Published var selectedModel: String = AppSettings.shared.ollamaModel
     @Published var showSettings = false
     @Published var selectedCommitTypes: Set<CommitType> = []
+    @Published var searchText = ""
 
-    // Filtered commits based on selected commit types
+    // Filtered commits based on selected commit types and search text
     var filteredCommits: [GitCommit] {
-        if selectedCommitTypes.isEmpty {
-            return commits
+        var result = commits
+
+        // Filter by commit type
+        if !selectedCommitTypes.isEmpty {
+            result = result.filter { selectedCommitTypes.contains(CommitSummarizer.categorize($0.subject)) }
         }
-        return commits.filter { selectedCommitTypes.contains(CommitSummarizer.categorize($0.subject)) }
+
+        // Filter by search text
+        if !searchText.isEmpty {
+            let query = searchText.lowercased()
+            result = result.filter {
+                $0.subject.lowercased().contains(query) ||
+                $0.repo.lowercased().contains(query)
+            }
+        }
+
+        return result
     }
 
     // All commit types present in current commits
@@ -310,6 +324,10 @@ final class AppViewModel: ObservableObject {
 
     func clearCommitTypeFilters() {
         selectedCommitTypes.removeAll()
+    }
+
+    func clearSearch() {
+        searchText = ""
     }
 
     func exportSummaryToClipboard() {

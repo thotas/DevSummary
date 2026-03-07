@@ -175,6 +175,37 @@ struct SummaryDetailView: View {
 
                 Spacer()
 
+                // Search bar
+                HStack(spacing: 6) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.tertiary)
+
+                    TextField("Search commits...", text: $viewModel.searchText)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12))
+                        .frame(width: 150)
+
+                    if !viewModel.searchText.isEmpty {
+                        Button {
+                            viewModel.clearSearch()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Clear search")
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(.quaternary, lineWidth: 1)
+                )
+
                 // Commit type filter
                 if !viewModel.availableCommitTypes.isEmpty {
                     HStack(spacing: 6) {
