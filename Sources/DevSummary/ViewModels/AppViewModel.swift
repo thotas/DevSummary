@@ -27,6 +27,9 @@ final class AppViewModel: ObservableObject {
     @Published var showSavePresetSheet = false
     @Published var newPresetName = ""
 
+    // Batch project selection for regeneration
+    @Published var selectedProjects: Set<String> = []
+
     // Commit detail for inspector
     @Published var selectedCommitDetail: GitCommitDetail?
     @Published var isLoadingCommitDetail = false
@@ -715,5 +718,44 @@ final class AppViewModel: ObservableObject {
 
     var nonFavoriteRepos: [GitRepo] {
         repos.filter { !favoriteRepos.contains($0.path) }
+    }
+
+    // MARK: - Batch Selection
+
+    var hasSelectedProjects: Bool {
+        !selectedProjects.isEmpty
+    }
+
+    var selectedProjectsCount: Int {
+        selectedProjects.count
+    }
+
+    func isProjectSelected(_ repoPath: String) -> Bool {
+        selectedProjects.contains(repoPath)
+    }
+
+    func toggleProjectSelection(_ repoPath: String) {
+        if selectedProjects.contains(repoPath) {
+            selectedProjects.remove(repoPath)
+        } else {
+            selectedProjects.insert(repoPath)
+        }
+    }
+
+    func selectAllProjects() {
+        guard let summary = summary else { return }
+        selectedProjects = Set(summary.projectSummaries.map(\.repoPath))
+    }
+
+    func deselectAllProjects() {
+        selectedProjects.removeAll()
+    }
+
+    func batchRegenerateWithOptions(_ options: SummaryOptions) async {
+        let paths = Array(selectedProjects)
+        for repoPath in paths {
+            await regenerateProjectSummaryWithOptions(repoPath, options: options)
+        }
+        deselectAllProjects()
     }
 }

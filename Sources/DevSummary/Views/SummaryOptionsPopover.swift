@@ -117,3 +117,87 @@ struct SummaryOptionsButton: View {
         .help("Generate summary with custom options")
     }
 }
+
+// MARK: - Batch Options Popover
+
+struct BatchOptionsPopover: View {
+    @Binding var style: SummaryStyle
+    @Binding var length: SummaryLength
+    let selectedCount: Int
+    let onGenerate: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(.purple)
+                Text("Batch Regenerate")
+                    .font(.system(size: 14, weight: .semibold))
+            }
+
+            Text("Regenerate summaries for \(selectedCount) project\(selectedCount != 1 ? "s" : "") with custom options.")
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Style")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Picker("Style", selection: $style) {
+                    ForEach(SummaryStyle.allCases) { s in
+                        Text(s.label).tag(s)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+
+                Text(style.description)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Length")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                Picker("Length", selection: $length) {
+                    ForEach(SummaryLength.allCases) { l in
+                        Text(l.label).tag(l)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+
+                Text(length.description)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+
+            HStack {
+                Button("Cancel") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+
+                Spacer()
+
+                Button {
+                    onGenerate()
+                } label: {
+                    Label("Generate All", systemImage: "sparkles")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        }
+        .padding(20)
+        .frame(width: 340)
+    }
+}

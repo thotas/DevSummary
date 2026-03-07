@@ -198,6 +198,10 @@ struct SummaryDetailView: View {
 
     // MARK: - Projects
 
+    @State private var showingBatchOptions = false
+    @State private var batchStyle: SummaryStyle = AppSettings.shared.summaryStyle
+    @State private var batchLength: SummaryLength = AppSettings.shared.summaryLength
+
     private var projectsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -208,6 +212,64 @@ struct SummaryDetailView: View {
                     Text("(\(viewModel.filteredProjects.count) matching)")
                         .font(.system(size: 13))
                         .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                // Batch selection controls
+                HStack(spacing: 8) {
+                    if viewModel.hasSelectedProjects {
+                        Text("\(viewModel.selectedProjectsCount) selected")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.accentColor.opacity(0.1), in: Capsule())
+
+                        Button {
+                            viewModel.deselectAllProjects()
+                        } label: {
+                            Text("Clear")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Clear selection")
+
+                        Button {
+                            showingBatchOptions = true
+                        } label: {
+                            Label("Regenerate Selected", systemImage: "sparkles")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .help("Regenerate summaries for selected projects")
+                        .popover(isPresented: $showingBatchOptions) {
+                            BatchOptionsPopover(
+                                style: $batchStyle,
+                                length: $batchLength,
+                                selectedCount: viewModel.selectedProjectsCount,
+                                onGenerate: {
+                                    let options = SummaryOptions(style: batchStyle, length: batchLength)
+                                    Task {
+                                        await viewModel.batchRegenerateWithOptions(options)
+                                    }
+                                    showingBatchOptions = false
+                                }
+                            )
+                        }
+                    } else {
+                        Button {
+                            viewModel.selectAllProjects()
+                        } label: {
+                            Text("Select All")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Select all projects")
+                    }
                 }
             }
 
@@ -231,11 +293,15 @@ struct SummaryDetailView: View {
                 ForEach(projectsToShow) { project in
                     ProjectCard(
                         project: project,
+                        isSelected: viewModel.isProjectSelected(project.repoPath),
                         onRegenerate: {
                             Task { await viewModel.regenerateProjectSummary(project.repoPath) }
                         },
                         onGenerateWithOptions: { options in
                             Task { await viewModel.regenerateProjectSummaryWithOptions(project.repoPath, options: options) }
+                        },
+                        onToggleSelection: {
+                            viewModel.toggleProjectSelection(project.repoPath)
                         }
                     )
                 }
@@ -432,13 +498,24 @@ struct SummaryDetailView: View {
 
 struct ProjectCard: View {
     let project: ProjectSummary
+    let isSelected: Bool
     let onRegenerate: () -> Void
     let onGenerateWithOptions: (SummaryOptions) -> Void
+    let onToggleSelection: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             // Header
             HStack {
+                Button(action: onToggleSelection) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 18))
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
+                .help(isSelected ? "Deselect project" : "Select project for batch operations")
+
                 Image(systemName: "folder.fill")
                     .font(.system(size: 14))
                     .foregroundStyle(.blue)
