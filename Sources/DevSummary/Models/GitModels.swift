@@ -171,6 +171,16 @@ enum TimePeriod: String, CaseIterable, Identifiable {
     }
 }
 
+struct SummaryOptions: Equatable {
+    let style: SummaryStyle
+    let length: SummaryLength
+
+    static let `default` = SummaryOptions(
+        style: AppSettings.shared.summaryStyle,
+        length: AppSettings.shared.summaryLength
+    )
+}
+
 struct ProjectSummary: Identifiable {
     let id = UUID()
     let repo: String
@@ -183,6 +193,7 @@ struct ProjectSummary: Identifiable {
     let isGenerating: Bool
     let commitLines: [String]
     let latestCommitHash: String
+    let summaryOptions: SummaryOptions?
 }
 
 struct DailyActivity: Identifiable {

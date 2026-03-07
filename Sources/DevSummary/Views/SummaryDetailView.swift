@@ -161,9 +161,15 @@ struct SummaryDetailView: View {
                 .font(.system(size: 17, weight: .semibold))
 
             ForEach(summary.projectSummaries) { project in
-                ProjectCard(project: project) {
-                    Task { await viewModel.regenerateProjectSummary(project.repoPath) }
-                }
+                ProjectCard(
+                    project: project,
+                    onRegenerate: {
+                        Task { await viewModel.regenerateProjectSummary(project.repoPath) }
+                    },
+                    onGenerateWithOptions: { options in
+                        Task { await viewModel.regenerateProjectSummaryWithOptions(project.repoPath, options: options) }
+                    }
+                )
             }
         }
     }
@@ -298,6 +304,7 @@ struct SummaryDetailView: View {
 struct ProjectCard: View {
     let project: ProjectSummary
     let onRegenerate: () -> Void
+    let onGenerateWithOptions: (SummaryOptions) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -321,13 +328,15 @@ struct ProjectCard: View {
                         .background(.quaternary, in: Capsule())
                 }
 
+                SummaryOptionsButton(project: project, onGenerate: onGenerateWithOptions)
+
                 Button(action: onRegenerate) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 11))
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .help("Regenerate summary")
+                .help("Regenerate with default settings")
             }
 
             // AI Summary

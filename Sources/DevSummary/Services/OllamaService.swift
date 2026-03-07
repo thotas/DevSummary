@@ -80,9 +80,9 @@ actor OllamaService {
         return decoded.response.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    func summarizeProject(name: String, readme: String?, commits: [GitCommit], period: TimePeriod) async throws -> String {
-        let style = AppSettings.shared.summaryStyle
-        let length = AppSettings.shared.summaryLength
+    func summarizeProject(name: String, readme: String?, commits: [GitCommit], period: TimePeriod, options: SummaryOptions? = nil) async throws -> String {
+        let style = options?.style ?? AppSettings.shared.summaryStyle
+        let length = options?.length ?? AppSettings.shared.summaryLength
 
         var context = "Project: \(name)\n\n"
 
@@ -160,9 +160,9 @@ actor OllamaService {
         }
     }
 
-    func summarizeAllProjects(projectSummaries: [(name: String, summary: String, commitCount: Int)], period: TimePeriod) async throws -> String {
-        let style = AppSettings.shared.summaryStyle
-        let length = AppSettings.shared.summaryLength
+    func summarizeAllProjects(projectSummaries: [(name: String, summary: String, commitCount: Int)], period: TimePeriod, options: SummaryOptions? = nil) async throws -> String {
+        let style = options?.style ?? AppSettings.shared.summaryStyle
+        let length = options?.length ?? AppSettings.shared.summaryLength
 
         var context = "Development activity \(period.descriptionText):\n\n"
         for p in projectSummaries {

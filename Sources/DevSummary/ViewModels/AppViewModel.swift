@@ -126,7 +126,8 @@ final class AppViewModel: ObservableObject {
                 aiSummary: cachedSummary?.summary,
                 isGenerating: false,
                 commitLines: commitLines,
-                latestCommitHash: latestHash
+                latestCommitHash: latestHash,
+                summaryOptions: nil
             ))
         }
 
@@ -177,7 +178,7 @@ final class AppViewModel: ObservableObject {
                 repo: updated.repo, repoPath: updated.repoPath, commitCount: updated.commitCount,
                 types: updated.types, latestCommit: updated.latestCommit, readme: updated.readme,
                 aiSummary: nil, isGenerating: true, commitLines: updated.commitLines,
-                latestCommitHash: updated.latestCommitHash
+                latestCommitHash: updated.latestCommitHash, summaryOptions: nil
             )
             currentSummary = replaceProject(in: currentSummary, at: index, with: updated)
             summary = currentSummary
@@ -202,7 +203,7 @@ final class AppViewModel: ObservableObject {
                         repo: p.repo, repoPath: p.repoPath, commitCount: p.commitCount,
                         types: p.types, latestCommit: p.latestCommit, readme: p.readme,
                         aiSummary: aiText, isGenerating: false, commitLines: p.commitLines,
-                        latestCommitHash: p.latestCommitHash
+                        latestCommitHash: p.latestCommitHash, summaryOptions: nil
                     )
                     s = replaceProject(in: s, at: idx, with: done)
                     summary = s
@@ -215,7 +216,7 @@ final class AppViewModel: ObservableObject {
                         repo: p.repo, repoPath: p.repoPath, commitCount: p.commitCount,
                         types: p.types, latestCommit: p.latestCommit, readme: p.readme,
                         aiSummary: nil, isGenerating: false, commitLines: p.commitLines,
-                        latestCommitHash: p.latestCommitHash
+                        latestCommitHash: p.latestCommitHash, summaryOptions: nil
                     )
                     s = replaceProject(in: s, at: idx, with: done)
                     summary = s
@@ -288,6 +289,67 @@ final class AppViewModel: ObservableObject {
     func regenerateProjectSummary(_ repoPath: String) async {
         await cacheService.invalidateProject(repoPath)
         await fetchSummary()
+    }
+
+    func regenerateProjectSummaryWithOptions(_ repoPath: String, options: SummaryOptions) async {
+        await cacheService.invalidateProject(repoPath)
+
+        guard var currentSummary = summary,
+              let index = currentSummary.projectSummaries.firstIndex(where: { $0.repoPath == repoPath }) else {
+            await fetchSummary()
+            return
+        }
+
+        let project = currentSummary.projectSummaries[index]
+
+        // Mark as generating with options
+        let updated = ProjectSummary(
+            repo: project.repo, repoPath: project.repoPath, commitCount: project.commitCount,
+            types: project.types, latestCommit: project.latestCommit, readme: project.readme,
+            aiSummary: nil, isGenerating: true, commitLines: project.commitLines,
+            latestCommitHash: project.latestCommitHash, summaryOptions: options
+        )
+        currentSummary = replaceProject(in: currentSummary, at: index, with: updated)
+        summary = currentSummary
+
+        // Generate with custom options
+        let repoCommits = commits.filter { $0.repoPath == repoPath }
+        do {
+            let aiText = try await ollamaService.summarizeProject(
+                name: project.repo, readme: project.readme,
+                commits: repoCommits, period: period, options: options
+            )
+
+            await cacheService.cacheProjectSummary(
+                repoPath: project.repoPath, summary: aiText, readme: project.readme,
+                lastCommitHash: project.latestCommitHash, commitCount: project.commitCount,
+                period: period.rawValue
+            )
+
+            if var s = summary, let idx = s.projectSummaries.firstIndex(where: { $0.repoPath == repoPath }) {
+                let p = s.projectSummaries[idx]
+                let done = ProjectSummary(
+                    repo: p.repo, repoPath: p.repoPath, commitCount: p.commitCount,
+                    types: p.types, latestCommit: p.latestCommit, readme: p.readme,
+                    aiSummary: aiText, isGenerating: false, commitLines: p.commitLines,
+                    latestCommitHash: p.latestCommitHash, summaryOptions: options
+                )
+                s = replaceProject(in: s, at: idx, with: done)
+                summary = s
+            }
+        } catch {
+            if var s = summary, let idx = s.projectSummaries.firstIndex(where: { $0.repoPath == repoPath }) {
+                let p = s.projectSummaries[idx]
+                let done = ProjectSummary(
+                    repo: p.repo, repoPath: p.repoPath, commitCount: p.commitCount,
+                    types: p.types, latestCommit: p.latestCommit, readme: p.readme,
+                    aiSummary: nil, isGenerating: false, commitLines: p.commitLines,
+                    latestCommitHash: p.latestCommitHash, summaryOptions: options
+                )
+                s = replaceProject(in: s, at: idx, with: done)
+                summary = s
+            }
+        }
     }
 
     func toggleRepo(_ path: String) {
