@@ -12,6 +12,7 @@ struct SummaryDetailView: View {
                 headerSection
                 overallSummaryCard
                 statsRow
+                distributionSection
                 contributionSection
                 activitySection
                 projectsSection
@@ -155,6 +156,18 @@ struct SummaryDetailView: View {
             StatCard(value: summary.totalCommits, label: "Commits", color: .blue)
             StatCard(value: summary.activeRepos, label: "Active Repos", color: .green)
             StatCard(value: summary.activeDays, label: "Active Days", color: .purple)
+        }
+    }
+
+    // MARK: - Work Distribution Chart
+
+    @ViewBuilder
+    private var distributionSection: some View {
+        if !commits.isEmpty {
+            CommitTypeDistributionChart(
+                commits: commits,
+                selectedTypes: $viewModel.selectedCommitTypes
+            )
         }
     }
 
