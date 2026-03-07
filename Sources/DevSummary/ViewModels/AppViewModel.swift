@@ -34,9 +34,17 @@ final class AppViewModel: ObservableObject {
     @Published var selectedCommitDetail: GitCommitDetail?
     @Published var isLoadingCommitDetail = false
 
-    // Filtered commits based on selected commit types, authors, and search text
+    // Filter by favorites
+    @Published var showFavoritesOnly = false
+
+    // Filtered commits based on selected commit types, authors, search text, and favorites
     var filteredCommits: [GitCommit] {
         var result = commits
+
+        // Filter by favorites
+        if showFavoritesOnly {
+            result = result.filter { AppSettings.shared.isCommitFavorite(hash: $0.hash, repoPath: $0.repoPath) }
+        }
 
         // Filter by commit type
         if !selectedCommitTypes.isEmpty {
@@ -757,5 +765,38 @@ final class AppViewModel: ObservableObject {
             await regenerateProjectSummaryWithOptions(repoPath, options: options)
         }
         deselectAllProjects()
+    }
+
+    // MARK: - Commit Favorites & Notes
+
+    func isCommitFavorite(_ commit: GitCommit) -> Bool {
+        AppSettings.shared.isCommitFavorite(hash: commit.hash, repoPath: commit.repoPath)
+    }
+
+    func toggleCommitFavorite(_ commit: GitCommit) {
+        AppSettings.shared.toggleCommitFavorite(hash: commit.hash, repoPath: commit.repoPath)
+        objectWillChange.send()
+    }
+
+    func getCommitNote(_ commit: GitCommit) -> CommitNote? {
+        AppSettings.shared.getCommitNote(hash: commit.hash, repoPath: commit.repoPath)
+    }
+
+    func saveCommitNote(_ commit: GitCommit, note: String) {
+        AppSettings.shared.saveCommitNote(hash: commit.hash, repoPath: commit.repoPath, note: note)
+        objectWillChange.send()
+    }
+
+    func deleteCommitNote(_ commit: GitCommit) {
+        AppSettings.shared.deleteCommitNote(hash: commit.hash, repoPath: commit.repoPath)
+        objectWillChange.send()
+    }
+
+    var favoriteCommitsCount: Int {
+        commits.filter { isCommitFavorite($0) }.count
+    }
+
+    func toggleFavoritesFilter() {
+        showFavoritesOnly.toggle()
     }
 }

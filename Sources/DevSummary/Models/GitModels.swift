@@ -332,3 +332,27 @@ struct GitCommitDetail: Identifiable {
         files.count
     }
 }
+
+// MARK: - Commit Favorite
+
+struct CommitNote: Identifiable, Codable, Equatable {
+    let id: UUID
+    var note: String
+    let createdAt: Date
+    var updatedAt: Date
+
+    init(id: UUID = UUID(), note: String, createdAt: Date = Date(), updatedAt: Date = Date()) {
+        self.id = id
+        self.note = note
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+struct CommitFavorite: Identifiable, Codable, Equatable {
+    let commitHash: String
+    let repoPath: String
+    let favoritedAt: Date
+
+    var id: String { commitHash + repoPath }
+}

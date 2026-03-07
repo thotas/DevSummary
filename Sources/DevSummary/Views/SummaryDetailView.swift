@@ -416,6 +416,30 @@ struct SummaryDetailView: View {
                     )
                 }
 
+                // Favorites filter
+                Button {
+                    viewModel.toggleFavoritesFilter()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: viewModel.showFavoritesOnly ? "star.fill" : "star")
+                            .font(.system(size: 10))
+                        if viewModel.showFavoritesOnly {
+                            Text("Favorites")
+                                .font(.system(size: 11, weight: .medium))
+                            if viewModel.favoriteCommitsCount > 0 {
+                                Text("(\(viewModel.favoriteCommitsCount))")
+                                    .font(.system(size: 10))
+                            }
+                        }
+                    }
+                    .foregroundStyle(viewModel.showFavoritesOnly ? .yellow : .secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(viewModel.showFavoritesOnly ? Color.yellow.opacity(0.15) : Color.gray.opacity(0.12), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .help(viewModel.showFavoritesOnly ? "Show all commits" : "Show favorites only")
+
                 Spacer()
 
                 // Export button with menu
@@ -814,19 +838,49 @@ struct AuthorFilterSection: View {
 struct CommitRow: View {
     let commit: GitCommit
     let onSelect: () -> Void
+    @EnvironmentObject var viewModel: AppViewModel
+
+    private var isFavorite: Bool {
+        viewModel.isCommitFavorite(commit)
+    }
+
+    private var hasNote: Bool {
+        viewModel.getCommitNote(commit) != nil
+    }
 
     var body: some View {
         Button(action: onSelect) {
             HStack(alignment: .top, spacing: 10) {
+                // Favorite star button
+                Button {
+                    viewModel.toggleCommitFavorite(commit)
+                } label: {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 12))
+                        .foregroundStyle(isFavorite ? .yellow : Color.secondary)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain)
+                .help(isFavorite ? "Remove from favorites" : "Add to favorites")
+
                 Circle()
                     .fill(Color.accentColor)
                     .frame(width: 8, height: 8)
-                    .padding(.top, 5)
+                    .padding(.top, 2)
+
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(commit.subject)
-                        .font(.system(size: 13))
-                        .lineLimit(1)
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 4) {
+                        Text(commit.subject)
+                            .font(.system(size: 13))
+                            .lineLimit(1)
+                            .foregroundStyle(.primary)
+
+                        if hasNote {
+                            Image(systemName: "note.text")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.blue)
+                        }
+                    }
                     HStack(spacing: 8) {
                         Text(commit.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
                             .font(.system(size: 11))

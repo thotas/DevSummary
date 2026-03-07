@@ -6,10 +6,22 @@ struct CommitDetailPopover: View {
     let commitDetail: GitCommitDetail?
     let onRegenerate: (SummaryStyle) -> Void
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var viewModel: AppViewModel
     @State private var selectedStyle: SummaryStyle = .concise
+    @State private var noteText: String = ""
+    @State private var isEditingNote = false
+    @FocusState private var isNoteFieldFocused: Bool
 
     private var shortHash: String {
         String(commit.hash.prefix(7))
+    }
+
+    private var existingNote: CommitNote? {
+        viewModel.getCommitNote(commit)
+    }
+
+    private var isFavorite: Bool {
+        viewModel.isCommitFavorite(commit)
     }
 
     var body: some View {
@@ -38,6 +50,11 @@ struct CommitDetailPopover: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // Commit info section
                     commitInfoSection
+
+                    Divider()
+
+                    // Note section
+                    noteSection
 
                     Divider()
 
@@ -167,6 +184,121 @@ struct CommitDetailPopover: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color(nsColor: .textBackgroundColor).opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
                 }
+            }
+        }
+    }
+
+    // MARK: - Note Section
+
+    private var noteSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("NOTE")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .tracking(0.5)
+
+                Spacer()
+
+                // Favorite button
+                Button {
+                    viewModel.toggleCommitFavorite(commit)
+                } label: {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 12))
+                        .foregroundStyle(isFavorite ? .yellow : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(isFavorite ? "Remove from favorites" : "Add to favorites")
+
+                // Add/Edit note button
+                Button {
+                    if let note = existingNote {
+                        noteText = note.note
+                    } else {
+                        noteText = ""
+                    }
+                    isEditingNote = true
+                    isNoteFieldFocused = true
+                } label: {
+                    Image(systemName: existingNote != nil ? "note.text" : "plus.circle")
+                        .font(.system(size: 12))
+                        .foregroundStyle(existingNote != nil ? .blue : .secondary)
+                }
+                .buttonStyle(.plain)
+                .help(existingNote != nil ? "Edit note" : "Add note")
+            }
+
+            if isEditingNote {
+                VStack(spacing: 8) {
+                    TextEditor(text: $noteText)
+                        .font(.system(size: 12))
+                        .frame(height: 80)
+                        .scrollContentBackground(.hidden)
+                        .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+                        .cornerRadius(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .strokeBorder(.quaternary, lineWidth: 1)
+                        )
+                        .focused($isNoteFieldFocused)
+
+                    HStack(spacing: 8) {
+                        if !noteText.isEmpty || existingNote != nil {
+                            Button {
+                                if !noteText.isEmpty {
+                                    viewModel.saveCommitNote(commit, note: noteText)
+                                } else if existingNote != nil {
+                                    viewModel.deleteCommitNote(commit)
+                                }
+                                isEditingNote = false
+                            } label: {
+                                Text("Save")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
+
+                        Button {
+                            isEditingNote = false
+                            noteText = ""
+                        } label: {
+                            Text("Cancel")
+                                .font(.system(size: 11))
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+            } else if let note = existingNote {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(note.note)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.primary)
+                        .lineSpacing(3)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+
+                    HStack {
+                        Text("Added \(note.createdAt.formatted(.dateTime.month().day().year()))")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+
+                        if note.updatedAt != note.createdAt {
+                            Text("· Updated \(note.updatedAt.formatted(.dateTime.month().day().year()))")
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                }
+            } else {
+                Text("No note added")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .italic()
+                    .padding(.vertical, 8)
             }
         }
     }

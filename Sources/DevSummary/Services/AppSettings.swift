@@ -15,6 +15,8 @@ final class AppSettings: @unchecked Sendable {
         static let presets = "viewPresets"
         static let lastUsedPresetId = "lastUsedPresetId"
         static let favoriteRepos = "favoriteRepos"
+        static let commitFavorites = "commitFavorites"
+        static let commitNotes = "commitNotes"
     }
 
     var ollamaModel: String {
@@ -110,6 +112,81 @@ final class AppSettings: @unchecked Sendable {
             favorites.insert(repoPath)
         }
         favoriteRepos = favorites
+    }
+
+    // MARK: - Commit Favorites
+
+    var commitFavorites: [CommitFavorite] {
+        get {
+            guard let data = defaults.data(forKey: Keys.commitFavorites),
+                  let decoded = try? JSONDecoder().decode([CommitFavorite].self, from: data) else {
+                return []
+            }
+            return decoded
+        }
+        set {
+            if let encoded = try? JSONEncoder().encode(newValue) {
+                defaults.set(encoded, forKey: Keys.commitFavorites)
+            }
+        }
+    }
+
+    func isCommitFavorite(hash: String, repoPath: String) -> Bool {
+        commitFavorites.contains { $0.commitHash == hash && $0.repoPath == repoPath }
+    }
+
+    func toggleCommitFavorite(hash: String, repoPath: String) {
+        var favorites = commitFavorites
+        if let index = favorites.firstIndex(where: { $0.commitHash == hash && $0.repoPath == repoPath }) {
+            favorites.remove(at: index)
+        } else {
+            favorites.append(CommitFavorite(commitHash: hash, repoPath: repoPath, favoritedAt: Date()))
+        }
+        commitFavorites = favorites
+    }
+
+    // MARK: - Commit Notes
+
+    var commitNotes: [String: CommitNote] {
+        get {
+            guard let data = defaults.data(forKey: Keys.commitNotes),
+                  let decoded = try? JSONDecoder().decode([String: CommitNote].self, from: data) else {
+                return [:]
+            }
+            return decoded
+        }
+        set {
+            if let encoded = try? JSONEncoder().encode(newValue) {
+                defaults.set(encoded, forKey: Keys.commitNotes)
+            }
+        }
+    }
+
+    func getCommitNote(hash: String, repoPath: String) -> CommitNote? {
+        let key = hash + ":" + repoPath
+        return commitNotes[key]
+    }
+
+    func saveCommitNote(hash: String, repoPath: String, note: String) {
+        var notes = commitNotes
+        let key = hash + ":" + repoPath
+        if note.isEmpty {
+            notes.removeValue(forKey: key)
+        } else {
+            if let existing = notes[key] {
+                notes[key] = CommitNote(id: existing.id, note: note, createdAt: existing.createdAt, updatedAt: Date())
+            } else {
+                notes[key] = CommitNote(note: note)
+            }
+        }
+        commitNotes = notes
+    }
+
+    func deleteCommitNote(hash: String, repoPath: String) {
+        var notes = commitNotes
+        let key = hash + ":" + repoPath
+        notes.removeValue(forKey: key)
+        commitNotes = notes
     }
 
     func addPreset(_ preset: ViewPreset) {
