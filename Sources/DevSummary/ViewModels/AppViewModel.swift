@@ -19,6 +19,9 @@ final class AppViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var selectedCommit: GitCommit?
     @Published var isSearchFocused = false
+    @Published var presets: [ViewPreset] = []
+    @Published var showSavePresetSheet = false
+    @Published var newPresetName = ""
 
     // Filtered commits based on selected commit types and search text
     var filteredCommits: [GitCommit] {
@@ -59,6 +62,7 @@ final class AppViewModel: ObservableObject {
     private var isGeneratingOverall = false
 
     init() {
+        loadPresets()
         Task {
             async let repoScan: Void = scanRepos()
             async let ollamaCheck: Void = checkOllama()
@@ -448,5 +452,38 @@ final class AppViewModel: ObservableObject {
             activeRepos: summary.activeRepos,
             activeDays: summary.activeDays
         )
+    }
+
+    // MARK: - Presets
+
+    func loadPresets() {
+        presets = AppSettings.shared.presets
+    }
+
+    func saveCurrentAsPreset(name: String) {
+        let preset = ViewPreset(
+            name: name,
+            repoPaths: selectedRepoPaths,
+            period: period
+        )
+        AppSettings.shared.addPreset(preset)
+        loadPresets()
+    }
+
+    func applyPreset(_ preset: ViewPreset) {
+        selectedRepoPaths = preset.repoPathsSet
+        period = preset.period
+        AppSettings.shared.lastUsedPresetId = preset.id
+        Task { await fetchSummary() }
+    }
+
+    func deletePreset(_ preset: ViewPreset) {
+        AppSettings.shared.removePreset(id: preset.id)
+        loadPresets()
+    }
+
+    func quickSwitchToPreset(index: Int) {
+        guard index >= 0 && index < presets.count else { return }
+        applyPreset(presets[index])
     }
 }

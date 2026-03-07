@@ -12,6 +12,8 @@ final class AppSettings: @unchecked Sendable {
         static let scanPaths = "scanPaths"
         static let summaryStyle = "summaryStyle"
         static let summaryLength = "summaryLength"
+        static let presets = "viewPresets"
+        static let lastUsedPresetId = "lastUsedPresetId"
     }
 
     var ollamaModel: String {
@@ -62,6 +64,49 @@ final class AppSettings: @unchecked Sendable {
             return length
         }
         set { defaults.set(newValue.rawValue, forKey: Keys.summaryLength) }
+    }
+
+    var presets: [ViewPreset] {
+        get {
+            guard let data = defaults.data(forKey: Keys.presets),
+                  let decoded = try? JSONDecoder().decode([ViewPreset].self, from: data) else {
+                return []
+            }
+            return decoded
+        }
+        set {
+            if let encoded = try? JSONEncoder().encode(newValue) {
+                defaults.set(encoded, forKey: Keys.presets)
+            }
+        }
+    }
+
+    var lastUsedPresetId: UUID? {
+        get {
+            guard let raw = defaults.string(forKey: Keys.lastUsedPresetId) else { return nil }
+            return UUID(uuidString: raw)
+        }
+        set { defaults.set(newValue?.uuidString, forKey: Keys.lastUsedPresetId) }
+    }
+
+    func addPreset(_ preset: ViewPreset) {
+        var current = presets
+        current.append(preset)
+        presets = current
+    }
+
+    func removePreset(id: UUID) {
+        var current = presets
+        current.removeAll { $0.id == id }
+        presets = current
+    }
+
+    func updatePreset(_ preset: ViewPreset) {
+        var current = presets
+        if let index = current.firstIndex(where: { $0.id == preset.id }) {
+            current[index] = preset
+            presets = current
+        }
     }
 
     static var defaultScanPaths: [String] {

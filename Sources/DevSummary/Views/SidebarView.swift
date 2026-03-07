@@ -5,6 +5,31 @@ struct SidebarView: View {
 
     var body: some View {
         List {
+            // Presets Section
+            Section {
+                if !viewModel.presets.isEmpty {
+                    ForEach(Array(viewModel.presets.enumerated()), id: \.element.id) { index, preset in
+                        PresetRow(preset: preset, index: index) {
+                            viewModel.applyPreset(preset)
+                        } onDelete: {
+                            viewModel.deletePreset(preset)
+                        }
+                    }
+                }
+
+                Button {
+                    viewModel.showSavePresetSheet = true
+                } label: {
+                    Label("Save Current View...", systemImage: "plus.circle")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                .disabled(viewModel.selectedRepoPaths.isEmpty)
+            } header: {
+                Text("Quick Presets")
+            }
+
             Section {
                 Picker("Time Range", selection: Binding(
                     get: { viewModel.period },
@@ -61,6 +86,107 @@ struct SidebarView: View {
                 .background(.regularMaterial)
             }
         }
+        .sheet(isPresented: $viewModel.showSavePresetSheet) {
+            SavePresetSheet()
+        }
+    }
+}
+
+struct PresetRow: View {
+    let preset: ViewPreset
+    let index: Int
+    let onApply: () -> Void
+    let onDelete: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: onApply) {
+            HStack(spacing: 8) {
+                Text("\(index + 1)")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 16)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(preset.name)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.primary)
+                    Text("\(preset.repoPaths.count) repos · \(preset.period.label)")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+
+                Spacer()
+
+                if isHovering {
+                    Button(action: onDelete) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .help("Press Cmd+\(index + 1) to quick switch")
+    }
+}
+
+struct SavePresetSheet: View {
+    @EnvironmentObject var viewModel: AppViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var presetName = ""
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("Save Current View as Preset")
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Preset Name")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                TextField("e.g., Daily Standup, Weekly Review", text: $presetName)
+                    .textFieldStyle(.roundedBorder)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Configuration")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                HStack {
+                    Text("\(viewModel.selectedRepoPaths.count) repositories")
+                    Text("·")
+                    Text(viewModel.period.label)
+                }
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+            }
+
+            HStack {
+                Button("Cancel") {
+                    dismiss()
+                }
+                .keyboardShortcut(.escape)
+
+                Spacer()
+
+                Button("Save") {
+                    viewModel.saveCurrentAsPreset(name: presetName)
+                    dismiss()
+                }
+                .keyboardShortcut(.return)
+                .disabled(presetName.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(24)
+        .frame(width: 360)
     }
 }
 

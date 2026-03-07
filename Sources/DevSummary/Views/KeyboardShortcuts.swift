@@ -32,18 +32,64 @@ struct FocusedShortcutHandler: ViewModifier {
             case 3: // F - Focus search
                 viewModel.toggleSearchFocus()
                 return true
-            case 29: // 1 - Last 24 hours
+            case 29: // 1 - Last 24 hours (or preset 1 if available)
+                if !viewModel.presets.isEmpty {
+                    viewModel.quickSwitchToPreset(index: 0)
+                    return true
+                }
                 viewModel.changePeriod(.oneDay)
                 return true
-            case 18: // 2 - Last week
+            case 18: // 2 - Last week (or preset 2 if available)
+                if viewModel.presets.count > 1 {
+                    viewModel.quickSwitchToPreset(index: 1)
+                    return true
+                }
                 viewModel.changePeriod(.oneWeek)
                 return true
-            case 19: // 3 - Last month
+            case 19: // 3 - Last month (or preset 3 if available)
+                if viewModel.presets.count > 2 {
+                    viewModel.quickSwitchToPreset(index: 2)
+                    return true
+                }
                 viewModel.changePeriod(.oneMonth)
                 return true
-            case 20: // 4 - Last 3 months
+            case 20: // 4 - Last 3 months (or preset 4 if available)
+                if viewModel.presets.count > 3 {
+                    viewModel.quickSwitchToPreset(index: 3)
+                    return true
+                }
                 viewModel.changePeriod(.threeMonths)
                 return true
+            case 21: // 5 - Preset 5
+                if viewModel.presets.count > 4 {
+                    viewModel.quickSwitchToPreset(index: 4)
+                    return true
+                }
+                return false
+            case 23: // 6 - Preset 6
+                if viewModel.presets.count > 5 {
+                    viewModel.quickSwitchToPreset(index: 5)
+                    return true
+                }
+                return false
+            case 26: // 7 - Preset 7
+                if viewModel.presets.count > 6 {
+                    viewModel.quickSwitchToPreset(index: 6)
+                    return true
+                }
+                return false
+            case 28: // 8 - Preset 8
+                if viewModel.presets.count > 7 {
+                    viewModel.quickSwitchToPreset(index: 7)
+                    return true
+                }
+                return false
+            case 25: // 9 - Preset 9
+                if viewModel.presets.count > 8 {
+                    viewModel.quickSwitchToPreset(index: 8)
+                    return true
+                }
+                return false
             case 50: // Escape - Clear search / dismiss
                 if !viewModel.searchText.isEmpty {
                     viewModel.clearSearch()

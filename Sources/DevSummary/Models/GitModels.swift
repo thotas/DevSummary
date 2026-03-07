@@ -216,3 +216,27 @@ struct Summary {
     let activeRepos: Int
     let activeDays: Int
 }
+
+// MARK: - Presets
+
+struct ViewPreset: Identifiable, Codable, Equatable {
+    let id: UUID
+    var name: String
+    var repoPaths: [String]
+    var periodRaw: String
+
+    var period: TimePeriod {
+        TimePeriod(rawValue: periodRaw) ?? .oneWeek
+    }
+
+    var repoPathsSet: Set<String> {
+        Set(repoPaths)
+    }
+
+    init(id: UUID = UUID(), name: String, repoPaths: Set<String>, period: TimePeriod) {
+        self.id = id
+        self.name = name
+        self.repoPaths = Array(repoPaths)
+        self.periodRaw = period.rawValue
+    }
+}

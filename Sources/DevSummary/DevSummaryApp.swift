@@ -67,6 +67,25 @@ struct DevSummaryApp: App {
 
                 Divider()
 
+                Button("Save as Preset...") {
+                    viewModel.showSavePresetSheet = true
+                }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .disabled(viewModel.selectedRepoPaths.isEmpty)
+
+                if !viewModel.presets.isEmpty {
+                    Divider()
+
+                    ForEach(Array(viewModel.presets.prefix(9).enumerated()), id: \.element.id) { index, preset in
+                        Button(preset.name) {
+                            viewModel.applyPreset(preset)
+                        }
+                        .keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .command)
+                    }
+                }
+
+                Divider()
+
                 Button("Settings...") {
                     viewModel.showSettings = true
                 }
