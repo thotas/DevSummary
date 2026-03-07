@@ -324,7 +324,7 @@ struct SummaryDetailView: View {
                             }
                         }
 
-                        if !viewModel.selectedCommitTypes.isEmpty || !viewModel.searchText.isEmpty {
+                        if !viewModel.selectedCommitTypes.isEmpty || !viewModel.searchText.isEmpty || viewModel.hasActiveAuthorFilters {
                             Button {
                                 viewModel.clearAllFilters()
                             } label: {
@@ -336,6 +336,18 @@ struct SummaryDetailView: View {
                             .help("Clear all filters")
                         }
                     }
+                }
+
+                // Author filter
+                if !viewModel.availableAuthors.isEmpty && viewModel.availableAuthors.count > 1 {
+                    AuthorFilterSection(
+                        authors: viewModel.availableAuthors,
+                        authorCounts: viewModel.authorCommitCounts,
+                        selectedAuthors: $viewModel.selectedAuthors,
+                        onToggle: { author in
+                            viewModel.toggleAuthorFilter(author)
+                        }
+                    )
                 }
 
                 Spacer()
@@ -640,6 +652,83 @@ struct CommitTypeFilterChip: View {
         }
         .buttonStyle(.plain)
         .help("Filter by \(type.label)")
+    }
+}
+
+// MARK: - Author Filter Section
+
+struct AuthorFilterSection: View {
+    let authors: [String]
+    let authorCounts: [String: Int]
+    @Binding var selectedAuthors: Set<String>
+    let onToggle: (String) -> Void
+
+    @State private var isExpanded = true
+
+    // Predefined colors for authors
+    private let authorColors: [Color] = [.blue, .green, .purple, .orange, .pink, .teal, .indigo, .cyan]
+
+    private func colorForAuthor(_ author: String) -> Color {
+        let index = abs(author.hashValue) % authorColors.count
+        return authorColors[index]
+    }
+
+    private func shortName(_ author: String) -> String {
+        // Extract first name or email username
+        if let spaceIndex = author.firstIndex(of: " ") {
+            return String(author[..<spaceIndex])
+        }
+        if let atIndex = author.firstIndex(of: "@") {
+            return String(author[..<atIndex])
+        }
+        return String(author.prefix(12))
+    }
+
+    var body: some View {
+        Menu {
+            ForEach(authors, id: \.self) { author in
+                let isSelected = selectedAuthors.contains(author)
+                let count = authorCounts[author] ?? 0
+                Button {
+                    onToggle(author)
+                } label: {
+                    HStack {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        Text(shortName(author))
+                        Spacer()
+                        Text("\(count)")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if !selectedAuthors.isEmpty {
+                Divider()
+                Button {
+                    selectedAuthors.removeAll()
+                } label: {
+                    Label("Clear Author Filters", systemImage: "xmark.circle")
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "person.2")
+                    .font(.system(size: 10))
+                Text("Authors")
+                    .font(.system(size: 11, weight: .medium))
+                if !selectedAuthors.isEmpty {
+                    Text("(\(selectedAuthors.count))")
+                        .font(.system(size: 10))
+                }
+            }
+            .foregroundStyle(!selectedAuthors.isEmpty ? .white : .secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(!selectedAuthors.isEmpty ? Color.gray : Color.gray.opacity(0.12), in: Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .fixedSize()
+        .help("Filter by author")
     }
 }
 

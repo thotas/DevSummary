@@ -17,6 +17,7 @@ final class AppViewModel: ObservableObject {
     @Published var selectedModel: String = AppSettings.shared.ollamaModel
     @Published var showSettings = false
     @Published var selectedCommitTypes: Set<CommitType> = []
+    @Published var selectedAuthors: Set<String> = []
     @Published var searchText = ""
     @Published var searchMode: SearchMode = .all
     @Published var sortOption: CommitSortOption = .date
@@ -30,13 +31,18 @@ final class AppViewModel: ObservableObject {
     @Published var selectedCommitDetail: GitCommitDetail?
     @Published var isLoadingCommitDetail = false
 
-    // Filtered commits based on selected commit types and search text
+    // Filtered commits based on selected commit types, authors, and search text
     var filteredCommits: [GitCommit] {
         var result = commits
 
         // Filter by commit type
         if !selectedCommitTypes.isEmpty {
             result = result.filter { selectedCommitTypes.contains(CommitSummarizer.categorize($0.subject)) }
+        }
+
+        // Filter by author
+        if !selectedAuthors.isEmpty {
+            result = result.filter { selectedAuthors.contains($0.author) }
         }
 
         // Filter by search text with different modes
@@ -119,6 +125,11 @@ final class AppViewModel: ObservableObject {
         !filteredProjects.isEmpty
     }
 
+    // Check if any author filters are active
+    var hasActiveAuthorFilters: Bool {
+        !selectedAuthors.isEmpty
+    }
+
     // Combined search results showing what's matched
     var searchResultsInfo: String {
         let commitCount = filteredCommits.count
@@ -146,6 +157,22 @@ final class AppViewModel: ObservableObject {
             types.insert(CommitSummarizer.categorize(commit.subject))
         }
         return types
+    }
+
+    // All authors present in current commits
+    var availableAuthors: [String] {
+        let authors = commits.map { $0.author }
+        let uniqueAuthors = Set(authors)
+        return Array(uniqueAuthors).sorted()
+    }
+
+    // Author commit counts
+    var authorCommitCounts: [String: Int] {
+        var counts: [String: Int] = [:]
+        for commit in commits {
+            counts[commit.author, default: 0] += 1
+        }
+        return counts
     }
 
     private let gitService = GitService()
@@ -491,6 +518,18 @@ final class AppViewModel: ObservableObject {
         selectedCommitTypes.removeAll()
     }
 
+    func toggleAuthorFilter(_ author: String) {
+        if selectedAuthors.contains(author) {
+            selectedAuthors.remove(author)
+        } else {
+            selectedAuthors.insert(author)
+        }
+    }
+
+    func clearAuthorFilters() {
+        selectedAuthors.removeAll()
+    }
+
     func clearSearch() {
         searchText = ""
         isSearchFocused = false
@@ -507,6 +546,7 @@ final class AppViewModel: ObservableObject {
     func clearAllFilters() {
         searchText = ""
         selectedCommitTypes.removeAll()
+        selectedAuthors.removeAll()
     }
 
     func toggleSearchFocus() {
