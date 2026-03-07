@@ -17,6 +17,7 @@ final class AppViewModel: ObservableObject {
     @Published var showSettings = false
     @Published var selectedCommitTypes: Set<CommitType> = []
     @Published var searchText = ""
+    @Published var selectedCommit: GitCommit?
 
     // Filtered commits based on selected commit types and search text
     var filteredCommits: [GitCommit] {
@@ -328,6 +329,10 @@ final class AppViewModel: ObservableObject {
 
     func clearSearch() {
         searchText = ""
+    }
+
+    func selectCommit(_ commit: GitCommit?) {
+        selectedCommit = commit
     }
 
     func exportSummaryToClipboard() {

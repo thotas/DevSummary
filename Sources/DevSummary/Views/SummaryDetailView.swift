@@ -20,6 +20,9 @@ struct SummaryDetailView: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .sheet(item: $viewModel.selectedCommit) { commit in
+            CommitDetailPopover(commit: commit)
+        }
     }
 
     // MARK: - Header
@@ -265,7 +268,9 @@ struct SummaryDetailView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(filteredCommits.prefix(50))) { commit in
-                        CommitRow(commit: commit)
+                        CommitRow(commit: commit) {
+                            viewModel.selectCommit(commit)
+                        }
                         if commit.id != filteredCommits.prefix(50).last?.id {
                             Divider().padding(.leading, 28)
                         }
@@ -516,36 +521,43 @@ struct CommitTypeFilterChip: View {
 
 struct CommitRow: View {
     let commit: GitCommit
+    let onSelect: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Circle()
-                .fill(Color.accentColor)
-                .frame(width: 8, height: 8)
-                .padding(.top, 5)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(commit.subject)
-                    .font(.system(size: 13))
-                    .lineLimit(1)
-                HStack(spacing: 8) {
-                    Text(commit.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-                    Text(commit.date.formatted(.dateTime.hour().minute()))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+        Button(action: onSelect) {
+            HStack(alignment: .top, spacing: 10) {
+                Circle()
+                    .fill(Color.accentColor)
+                    .frame(width: 8, height: 8)
+                    .padding(.top, 5)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(commit.subject)
+                        .font(.system(size: 13))
+                        .lineLimit(1)
+                        .foregroundStyle(.primary)
+                    HStack(spacing: 8) {
+                        Text(commit.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                        Text(commit.date.formatted(.dateTime.hour().minute()))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
                 }
+                Spacer()
+                Text(commit.repo)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.accentColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color.accentColor.opacity(0.1), in: Capsule())
             }
-            Spacer()
-            Text(commit.repo)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color.accentColor)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 2)
-                .background(Color.accentColor.opacity(0.1), in: Capsule())
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
+        .buttonStyle(.plain)
+        .help("Click to view commit details")
     }
 }
 

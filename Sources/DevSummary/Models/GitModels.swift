@@ -15,7 +15,7 @@ struct GitRepo: Identifiable, Hashable {
     }
 }
 
-struct GitCommit: Identifiable {
+struct GitCommit: Identifiable, Hashable {
     let id = UUID()
     let hash: String
     let author: String
@@ -25,6 +25,14 @@ struct GitCommit: Identifiable {
     let body: String
     let repo: String
     let repoPath: String
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(hash)
+    }
+
+    static func == (lhs: GitCommit, rhs: GitCommit) -> Bool {
+        lhs.hash == rhs.hash
+    }
 }
 
 enum CommitType: String, CaseIterable {
