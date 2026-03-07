@@ -71,6 +71,57 @@ enum CommitType: String, CaseIterable {
     }
 }
 
+enum SearchMode: String, CaseIterable, Identifiable {
+    case all = "all"
+    case subject = "subject"
+    case repo = "repo"
+    case body = "body"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: return "All"
+        case .subject: return "Subject"
+        case .repo: return "Repository"
+        case .body: return "Body"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .all: return "magnifyingglass"
+        case .subject: return "text.magnifyingglass"
+        case .repo: return "folder"
+        case .body: return "doc.text"
+        }
+    }
+}
+
+enum CommitSortOption: String, CaseIterable, Identifiable {
+    case date = "date"
+    case repo = "repo"
+    case relevance = "relevance"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .date: return "Date"
+        case .repo: return "Repository"
+        case .relevance: return "Relevance"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .date: return "calendar"
+        case .repo: return "folder"
+        case .relevance: return "text.magnifyingglass"
+        }
+    }
+}
+
 enum SummaryStyle: String, CaseIterable, Identifiable {
     case concise = "concise"
     case detailed = "detailed"

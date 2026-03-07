@@ -18,6 +18,8 @@ final class AppViewModel: ObservableObject {
     @Published var showSettings = false
     @Published var selectedCommitTypes: Set<CommitType> = []
     @Published var searchText = ""
+    @Published var searchMode: SearchMode = .all
+    @Published var sortOption: CommitSortOption = .date
     @Published var selectedCommit: GitCommit?
     @Published var isSearchFocused = false
     @Published var presets: [ViewPreset] = []
@@ -33,16 +35,104 @@ final class AppViewModel: ObservableObject {
             result = result.filter { selectedCommitTypes.contains(CommitSummarizer.categorize($0.subject)) }
         }
 
-        // Filter by search text
+        // Filter by search text with different modes
         if !searchText.isEmpty {
             let query = searchText.lowercased()
-            result = result.filter {
-                $0.subject.lowercased().contains(query) ||
-                $0.repo.lowercased().contains(query)
+            switch searchMode {
+            case .all:
+                // Search in subject, repo, and body
+                result = result.filter {
+                    $0.subject.lowercased().contains(query) ||
+                    $0.repo.lowercased().contains(query) ||
+                    $0.body.lowercased().contains(query)
+                }
+            case .subject:
+                result = result.filter { $0.subject.lowercased().contains(query) }
+            case .repo:
+                result = result.filter { $0.repo.lowercased().contains(query) }
+            case .body:
+                result = result.filter { $0.body.lowercased().contains(query) }
+            }
+        }
+
+        // Apply sorting
+        switch sortOption {
+        case .date:
+            result.sort { $0.date > $1.date }
+        case .repo:
+            result.sort { $0.repo.lowercased() < $1.repo.lowercased() }
+        case .relevance:
+            // For relevance, prioritize subject matches, then body, then repo
+            if !searchText.isEmpty {
+                let query = searchText.lowercased()
+                result.sort { c1, c2 in
+                    let c1Subject = c1.subject.lowercased().contains(query)
+                    let c1Body = c1.body.lowercased().contains(query)
+                    let c2Subject = c2.subject.lowercased().contains(query)
+                    let c2Body = c2.body.lowercased().contains(query)
+
+                    if c1Subject && !c2Subject { return true }
+                    if !c1Subject && c2Subject { return false }
+                    if c1Body && !c2Body { return true }
+                    if !c1Body && c2Body { return false }
+                    return c1.date > c2.date
+                }
             }
         }
 
         return result
+    }
+
+    // Filtered projects based on search
+    var filteredProjects: [ProjectSummary] {
+        guard let summary = summary else { return [] }
+        var result = summary.projectSummaries
+
+        if !searchText.isEmpty {
+            let query = searchText.lowercased()
+            switch searchMode {
+            case .all:
+                result = result.filter { project in
+                    project.repo.lowercased().contains(query) ||
+                    (project.aiSummary?.lowercased().contains(query) ?? false) ||
+                    (project.readme?.lowercased().contains(query) ?? false)
+                }
+            case .subject, .body:
+                result = result.filter { project in
+                    project.repo.lowercased().contains(query) ||
+                    (project.aiSummary?.lowercased().contains(query) ?? false)
+                }
+            case .repo:
+                result = result.filter { $0.repo.lowercased().contains(query) }
+            }
+        }
+
+        return result
+    }
+
+    // Check if any projects match the search
+    var hasMatchingProjects: Bool {
+        !filteredProjects.isEmpty
+    }
+
+    // Combined search results showing what's matched
+    var searchResultsInfo: String {
+        let commitCount = filteredCommits.count
+        let projectCount = filteredProjects.count
+
+        if searchText.isEmpty {
+            return ""
+        }
+
+        var parts: [String] = []
+        if commitCount > 0 {
+            parts.append("\(commitCount) commit\(commitCount != 1 ? "s" : "")")
+        }
+        if projectCount > 0 {
+            parts.append("\(projectCount) project\(projectCount != 1 ? "s" : "")")
+        }
+
+        return parts.isEmpty ? "No results" : parts.joined(separator: ", ")
     }
 
     // All commit types present in current commits
@@ -398,6 +488,19 @@ final class AppViewModel: ObservableObject {
     func clearSearch() {
         searchText = ""
         isSearchFocused = false
+    }
+
+    func setSearchMode(_ mode: SearchMode) {
+        searchMode = mode
+    }
+
+    func setSortOption(_ option: CommitSortOption) {
+        sortOption = option
+    }
+
+    func clearAllFilters() {
+        searchText = ""
+        selectedCommitTypes.removeAll()
     }
 
     func toggleSearchFocus() {

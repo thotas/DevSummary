@@ -174,19 +174,45 @@ struct SummaryDetailView: View {
 
     private var projectsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Projects")
-                .font(.system(size: 17, weight: .semibold))
+            HStack {
+                Text("Projects")
+                    .font(.system(size: 17, weight: .semibold))
 
-            ForEach(summary.projectSummaries) { project in
-                ProjectCard(
-                    project: project,
-                    onRegenerate: {
-                        Task { await viewModel.regenerateProjectSummary(project.repoPath) }
-                    },
-                    onGenerateWithOptions: { options in
-                        Task { await viewModel.regenerateProjectSummaryWithOptions(project.repoPath, options: options) }
-                    }
-                )
+                if !viewModel.searchText.isEmpty && viewModel.searchMode != .body {
+                    Text("(\(viewModel.filteredProjects.count) matching)")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            let projectsToShow = viewModel.searchText.isEmpty || viewModel.searchMode == .body
+                ? summary.projectSummaries
+                : viewModel.filteredProjects
+
+            if projectsToShow.isEmpty && !viewModel.searchText.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "folder.badge.questionmark")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.tertiary)
+                    Text("No projects match your search")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(40)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                ForEach(projectsToShow) { project in
+                    ProjectCard(
+                        project: project,
+                        onRegenerate: {
+                            Task { await viewModel.regenerateProjectSummary(project.repoPath) }
+                        },
+                        onGenerateWithOptions: { options in
+                            Task { await viewModel.regenerateProjectSummaryWithOptions(project.repoPath, options: options) }
+                        }
+                    )
+                }
             }
         }
     }
@@ -201,37 +227,62 @@ struct SummaryDetailView: View {
 
                 Spacer()
 
-                // Search bar
-                HStack(spacing: 6) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.tertiary)
-
-                    TextField("Search commits...", text: $viewModel.searchText)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 12))
-                        .frame(width: 150)
-                        .focused($isSearchFocused)
-
-                    if !viewModel.searchText.isEmpty {
-                        Button {
-                            viewModel.clearSearch()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.tertiary)
+                // Search bar with mode selector
+                HStack(spacing: 8) {
+                    // Search mode picker
+                    Picker("Search Mode", selection: $viewModel.searchMode) {
+                        ForEach(SearchMode.allCases) { mode in
+                            Label(mode.label, systemImage: mode.icon)
+                                .tag(mode)
                         }
-                        .buttonStyle(.plain)
-                        .help("Clear search")
                     }
+                    .pickerStyle(.menu)
+                    .frame(width: 100)
+                    .help("Search mode")
+
+                    // Search field
+                    HStack(spacing: 6) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.tertiary)
+
+                        TextField("Search commits...", text: $viewModel.searchText)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 12))
+                            .frame(width: 150)
+                            .focused($isSearchFocused)
+
+                        if !viewModel.searchText.isEmpty {
+                            Button {
+                                viewModel.clearSearch()
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Clear search")
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(.quaternary, lineWidth: 1)
+                    )
+
+                    // Sort option picker
+                    Picker("Sort", selection: $viewModel.sortOption) {
+                        ForEach(CommitSortOption.allCases) { option in
+                            Label(option.label, systemImage: option.icon)
+                                .tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 100)
+                    .help("Sort by")
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(.quaternary, lineWidth: 1)
-                )
 
                 // Commit type filter
                 if !viewModel.availableCommitTypes.isEmpty {
@@ -247,9 +298,9 @@ struct SummaryDetailView: View {
                             }
                         }
 
-                        if !viewModel.selectedCommitTypes.isEmpty {
+                        if !viewModel.selectedCommitTypes.isEmpty || !viewModel.searchText.isEmpty {
                             Button {
-                                viewModel.clearCommitTypeFilters()
+                                viewModel.clearAllFilters()
                             } label: {
                                 Text("Clear")
                                     .font(.system(size: 11))
@@ -284,6 +335,17 @@ struct SummaryDetailView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .help("Export summary")
+            }
+
+            // Search results info
+            if !viewModel.searchText.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 11))
+                    Text(viewModel.searchResultsInfo)
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(.secondary)
             }
 
             let filteredCommits = viewModel.filteredCommits
