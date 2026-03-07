@@ -128,6 +128,7 @@ enum SummaryLength: String, CaseIterable, Identifiable {
 }
 
 enum TimePeriod: String, CaseIterable, Identifiable {
+    case oneDay = "1d"
     case oneWeek = "1w"
     case twoWeeks = "2w"
     case oneMonth = "1m"
@@ -139,6 +140,7 @@ enum TimePeriod: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
+        case .oneDay: return "Past 24 Hours"
         case .oneWeek: return "Past Week"
         case .twoWeeks: return "Past 2 Weeks"
         case .oneMonth: return "Past Month"
@@ -150,6 +152,7 @@ enum TimePeriod: String, CaseIterable, Identifiable {
 
     var days: Int {
         switch self {
+        case .oneDay: return 1
         case .oneWeek: return 7
         case .twoWeeks: return 14
         case .oneMonth: return 30
@@ -161,6 +164,7 @@ enum TimePeriod: String, CaseIterable, Identifiable {
 
     var descriptionText: String {
         switch self {
+        case .oneDay: return "the past 24 hours"
         case .oneWeek: return "this past week"
         case .twoWeeks: return "the past two weeks"
         case .oneMonth: return "this past month"

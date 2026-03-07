@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SummaryDetailView: View {
     @EnvironmentObject var viewModel: AppViewModel
+    @FocusState private var isSearchFocused: Bool
     let summary: Summary
     let commits: [GitCommit]
 
@@ -22,6 +23,9 @@ struct SummaryDetailView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .sheet(item: $viewModel.selectedCommit) { commit in
             CommitDetailPopover(commit: commit)
+        }
+        .onChange(of: viewModel.isSearchFocused) { _, newValue in
+            isSearchFocused = newValue
         }
     }
 
@@ -194,6 +198,7 @@ struct SummaryDetailView: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
                         .frame(width: 150)
+                        .focused($isSearchFocused)
 
                     if !viewModel.searchText.isEmpty {
                         Button {

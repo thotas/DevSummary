@@ -24,5 +24,6 @@ struct ContentView: View {
         .sheet(isPresented: $viewModel.showSettings) {
             SettingsView()
         }
+        .focusedShortcutHandler(viewModel: viewModel)
     }
 }
