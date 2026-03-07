@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -410,6 +411,35 @@ final class AppViewModel: ObservableObject {
     func exportSummaryToClipboard() {
         guard let summary = summary else { return }
 
+        let markdown = generateMarkdown(from: summary)
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(markdown, forType: .string)
+    }
+
+    func exportSummaryToFile() {
+        guard let summary = summary else { return }
+
+        let markdown = generateMarkdown(from: summary)
+
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [UTType.plainText]
+        savePanel.nameFieldStringValue = "DevSummary-\(Date().formatted(.dateTime.month().day().year())).md"
+        savePanel.title = "Export Summary"
+        savePanel.message = "Choose a location to save the summary"
+
+        savePanel.begin { response in
+            if response == .OK, let url = savePanel.url {
+                do {
+                    try markdown.write(to: url, atomically: true, encoding: .utf8)
+                } catch {
+                    self.error = "Failed to save file: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    private func generateMarkdown(from summary: Summary) -> String {
         var markdown = "# Dev Summary\n\n"
         markdown += "Generated \(Date().formatted(.dateTime.weekday(.wide).month(.wide).day().year()))\n\n"
 
@@ -422,17 +452,26 @@ final class AppViewModel: ObservableObject {
         markdown += "- **Active Repos:** \(summary.activeRepos)\n"
         markdown += "- **Active Days:** \(summary.activeDays)\n\n"
 
+        markdown += "## Daily Activity\n\n"
+        for day in summary.dailyActivity.prefix(7) {
+            markdown += "- \(day.date.formatted(.dateTime.month(.abbreviated).day())): \(day.count) commits\n"
+        }
+        markdown += "\n"
+
         markdown += "## Projects\n\n"
         for project in summary.projectSummaries {
             markdown += "### \(project.repo)\n"
             if let aiSummary = project.aiSummary {
                 markdown += "\(aiSummary)\n"
             }
-            markdown += "- \(project.commitCount) commits\n\n"
+            markdown += "- \(project.commitCount) commits\n"
+            if !project.types.isEmpty {
+                markdown += "- Types: \(project.types.map { "\($0.key.rawValue): \($0.value)" }.joined(separator: ", "))\n"
+            }
+            markdown += "\n"
         }
 
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(markdown, forType: .string)
+        return markdown
     }
 
     func updateModel(_ model: String) {

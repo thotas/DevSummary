@@ -250,16 +250,27 @@ struct SummaryDetailView: View {
 
                 Spacer()
 
-                // Export button
-                Button {
-                    viewModel.exportSummaryToClipboard()
+                // Export button with menu
+                Menu {
+                    Button {
+                        viewModel.exportSummaryToClipboard()
+                    } label: {
+                        Label("Copy to Clipboard", systemImage: "doc.on.clipboard")
+                    }
+
+                    Button {
+                        viewModel.exportSummaryToFile()
+                    } label: {
+                        Label("Save to File...", systemImage: "square.and.arrow.down")
+                    }
                 } label: {
-                    Label("Export", systemImage: "doc.on.clipboard")
+                    Label("Export", systemImage: "square.and.arrow.up")
                         .font(.system(size: 11, weight: .medium))
                 }
+                .menuStyle(.borderlessButton)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .help("Export summary to clipboard as Markdown")
+                .help("Export summary")
             }
 
             let filteredCommits = viewModel.filteredCommits

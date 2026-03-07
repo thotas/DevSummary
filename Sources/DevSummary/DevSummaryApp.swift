@@ -65,6 +65,11 @@ struct DevSummaryApp: App {
                 }
                 .keyboardShortcut("e", modifiers: .command)
 
+                Button("Export to File...") {
+                    viewModel.exportSummaryToFile()
+                }
+                .keyboardShortcut("e", modifiers: [.command, .shift])
+
                 Divider()
 
                 Button("Save as Preset...") {
