@@ -1,10 +1,18 @@
 import SwiftUI
+import AppKit
 
 struct SidebarView: View {
     @EnvironmentObject var viewModel: AppViewModel
 
     var body: some View {
         List {
+            // Quick Actions Toolbar
+            Section {
+                QuickActionsToolbar()
+            } header: {
+                Text("Quick Actions")
+            }
+
             // Presets Section
             Section {
                 if !viewModel.presets.isEmpty {
@@ -195,6 +203,8 @@ struct RepoRow: View {
     let isSelected: Bool
     let onToggle: () -> Void
 
+    @State private var isHovering = false
+
     var body: some View {
         Button(action: onToggle) {
             HStack(spacing: 10) {
@@ -204,9 +214,16 @@ struct RepoRow: View {
                     .contentTransition(.symbolEffect(.replace))
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(repo.name)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 6) {
+                        Text(repo.name)
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.primary)
+
+                        // Health indicator badge
+                        if let date = repo.latestCommitDate {
+                            HealthBadge(date: date)
+                        }
+                    }
                     Text(shortenPath(repo.path))
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
@@ -218,9 +235,202 @@ struct RepoRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                openInFinder(repo.path)
+            } label: {
+                Label("Open in Finder", systemImage: "folder")
+            }
+
+            Button {
+                openInTerminal(repo.path)
+            } label: {
+                Label("Open in Terminal", systemImage: "terminal")
+            }
+
+            Button {
+                openInVSCode(repo.path)
+            } label: {
+                Label("Open in VS Code", systemImage: "chevron.left.forwardslash.chevron.right")
+            }
+
+            Divider()
+
+            Button {
+                copyPathToClipboard(repo.path)
+            } label: {
+                Label("Copy Path", systemImage: "doc.on.doc")
+            }
+
+            Button {
+                copyNameToClipboard(repo.name)
+            } label: {
+                Label("Copy Repo Name", systemImage: "textformat")
+            }
+
+            Divider()
+
+            Button {
+                NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: repo.path)
+            } label: {
+                Label("Reveal in Finder", systemImage: "arrow.right.circle")
+            }
+        }
     }
 
     private func shortenPath(_ path: String) -> String {
         path.replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~")
     }
+}
+
+// MARK: - Health Badge
+
+struct HealthBadge: View {
+    let date: Date
+    private let calendar = Calendar.current
+
+    private var daysSinceCommit: Int {
+        calendar.dateComponents([.day], from: date, to: Date()).day ?? 0
+    }
+
+    private var healthStatus: (color: Color, label: String) {
+        switch daysSinceCommit {
+        case 0:
+            return (.green, "Today")
+        case 1:
+            return (.green, "Yesterday")
+        case 2...3:
+            return (.mint, "Recent")
+        case 4...7:
+            return (.yellow, "This week")
+        case 8...14:
+            return (.orange, "Stale")
+        default:
+            return (.red, "Old")
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Circle()
+                .fill(healthStatus.color)
+                .frame(width: 6, height: 6)
+            Text(healthStatus.label)
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(healthStatus.color)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(healthStatus.color.opacity(0.15))
+        .clipShape(Capsule())
+    }
+}
+
+// MARK: - Quick Actions Toolbar
+
+struct QuickActionsToolbar: View {
+    @EnvironmentObject var viewModel: AppViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ToolbarButton(
+                icon: "arrow.clockwise",
+                label: "Refresh",
+                action: { Task { await viewModel.fetchSummary() } }
+            )
+            .disabled(viewModel.isLoading)
+
+            ToolbarButton(
+                icon: "doc.on.clipboard",
+                label: "Copy All",
+                action: copyAllPaths
+            )
+            .disabled(viewModel.selectedRepoPaths.isEmpty)
+
+            ToolbarButton(
+                icon: "square.and.arrow.up",
+                label: "Export",
+                action: { viewModel.exportSummaryToClipboard() }
+            )
+            .disabled(viewModel.selectedRepoPaths.isEmpty)
+        }
+    }
+
+    private func copyAllPaths() {
+        let paths = viewModel.selectedRepoPaths.joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(paths, forType: .string)
+    }
+}
+
+struct ToolbarButton: View {
+    let icon: String
+    let label: String
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                Text(label)
+                    .font(.system(size: 9))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(isHovering ? Color.accentColor.opacity(0.2) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(isHovering ? Color.accentColor : Color.secondary)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
+    }
+}
+
+// MARK: - Context Menu Actions
+
+private func openInFinder(_ path: String) {
+    NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: path)
+}
+
+private func openInTerminal(_ path: String) {
+    let script = """
+    tell application "Terminal"
+        activate
+        do script "cd '\(path)'"
+    end tell
+    """
+    if let appleScript = NSAppleScript(source: script) {
+        var error: NSDictionary?
+        appleScript.executeAndReturnError(&error)
+    }
+}
+
+private func openInVSCode(_ path: String) {
+    let script = """
+    tell application "Visual Studio Code"
+        activate
+        open "\(path)"
+    end tell
+    """
+    if let appleScript = NSAppleScript(source: script) {
+        var error: NSDictionary?
+        appleScript.executeAndReturnError(&error)
+    }
+}
+
+private func copyPathToClipboard(_ path: String) {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(path, forType: .string)
+}
+
+private func copyNameToClipboard(_ name: String) {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(name, forType: .string)
 }
