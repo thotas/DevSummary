@@ -14,6 +14,7 @@ final class AppSettings: @unchecked Sendable {
         static let summaryLength = "summaryLength"
         static let presets = "viewPresets"
         static let lastUsedPresetId = "lastUsedPresetId"
+        static let favoriteRepos = "favoriteRepos"
     }
 
     var ollamaModel: String {
@@ -87,6 +88,28 @@ final class AppSettings: @unchecked Sendable {
             return UUID(uuidString: raw)
         }
         set { defaults.set(newValue?.uuidString, forKey: Keys.lastUsedPresetId) }
+    }
+
+    var favoriteRepos: Set<String> {
+        get {
+            guard let paths = defaults.stringArray(forKey: Keys.favoriteRepos) else { return [] }
+            return Set(paths)
+        }
+        set { defaults.set(Array(newValue), forKey: Keys.favoriteRepos) }
+    }
+
+    func isFavorite(_ repoPath: String) -> Bool {
+        favoriteRepos.contains(repoPath)
+    }
+
+    func toggleFavorite(_ repoPath: String) {
+        var favorites = favoriteRepos
+        if favorites.contains(repoPath) {
+            favorites.remove(repoPath)
+        } else {
+            favorites.insert(repoPath)
+        }
+        favoriteRepos = favorites
     }
 
     func addPreset(_ preset: ViewPreset) {

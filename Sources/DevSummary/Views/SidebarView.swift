@@ -52,13 +52,45 @@ struct SidebarView: View {
                 Text("Time Range")
             }
 
+            // Favorites Section
+            if !viewModel.favoriteReposList.isEmpty {
+                Section {
+                    ForEach(viewModel.favoriteReposList) { repo in
+                        RepoRow(
+                            repo: repo,
+                            isSelected: viewModel.selectedRepoPaths.contains(repo.path),
+                            isFavorite: true
+                        ) {
+                            viewModel.toggleRepo(repo.path)
+                        } onToggleFavorite: {
+                            viewModel.toggleFavorite(repo.path)
+                        }
+                    }
+                } header: {
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .foregroundStyle(.yellow)
+                            .font(.system(size: 10))
+                        Text("Favorites")
+                        Spacer()
+                        Text("\(viewModel.favoriteReposList.count)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            // All Repositories Section
             Section {
-                ForEach(viewModel.repos) { repo in
+                ForEach(viewModel.nonFavoriteRepos) { repo in
                     RepoRow(
                         repo: repo,
-                        isSelected: viewModel.selectedRepoPaths.contains(repo.path)
+                        isSelected: viewModel.selectedRepoPaths.contains(repo.path),
+                        isFavorite: false
                     ) {
                         viewModel.toggleRepo(repo.path)
+                    } onToggleFavorite: {
+                        viewModel.toggleFavorite(repo.path)
                     }
                 }
             } header: {
@@ -201,7 +233,9 @@ struct SavePresetSheet: View {
 struct RepoRow: View {
     let repo: GitRepo
     let isSelected: Bool
+    let isFavorite: Bool
     let onToggle: () -> Void
+    let onToggleFavorite: () -> Void
 
     @State private var isHovering = false
 
@@ -231,11 +265,33 @@ struct RepoRow: View {
                 }
 
                 Spacer()
+
+                // Favorite star button
+                Button(action: onToggleFavorite) {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .font(.system(size: 12))
+                        .foregroundStyle(isFavorite ? Color.yellow : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .opacity(isHovering || isFavorite ? 1 : 0)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovering = hovering
+            }
+        }
         .contextMenu {
+            Button {
+                onToggleFavorite()
+            } label: {
+                Label(isFavorite ? "Remove from Favorites" : "Add to Favorites", systemImage: isFavorite ? "star.slash" : "star")
+            }
+
+            Divider()
+
             Button {
                 openInFinder(repo.path)
             } label: {

@@ -628,4 +628,27 @@ final class AppViewModel: ObservableObject {
         guard index >= 0 && index < presets.count else { return }
         applyPreset(presets[index])
     }
+
+    // MARK: - Favorites
+
+    var favoriteRepos: Set<String> {
+        AppSettings.shared.favoriteRepos
+    }
+
+    func isFavorite(_ repoPath: String) -> Bool {
+        AppSettings.shared.isFavorite(repoPath)
+    }
+
+    func toggleFavorite(_ repoPath: String) {
+        AppSettings.shared.toggleFavorite(repoPath)
+        objectWillChange.send()
+    }
+
+    var favoriteReposList: [GitRepo] {
+        repos.filter { favoriteRepos.contains($0.path) }
+    }
+
+    var nonFavoriteRepos: [GitRepo] {
+        repos.filter { !favoriteRepos.contains($0.path) }
+    }
 }
