@@ -14,6 +14,7 @@ struct SummaryDetailView: View {
                 statsRow
                 distributionSection
                 contributionSection
+                productivitySection
                 activitySection
                 projectsSection
                 recentCommitsSection
@@ -180,6 +181,15 @@ struct SummaryDetailView: View {
                 ContributionCalendar(commits: commits)
                 StreakInfoView(commits: commits)
             }
+        }
+    }
+
+    // MARK: - Productivity Patterns
+
+    @ViewBuilder
+    private var productivitySection: some View {
+        if !commits.isEmpty {
+            ProductivityPatternsView(commits: commits)
         }
     }
 
