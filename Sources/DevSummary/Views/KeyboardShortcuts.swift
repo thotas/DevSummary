@@ -20,6 +20,17 @@ struct FocusedShortcutHandler: ViewModifier {
     private func handleKeyEvent(_ event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
+        // Check for Command + Shift (Command Palette)
+        if modifiers.contains(.command) && modifiers.contains(.shift) {
+            switch event.keyCode {
+            case 35: // P - Command Palette
+                viewModel.toggleCommandPalette()
+                return true
+            default:
+                break
+            }
+        }
+
         // Check for Command key
         if modifiers.contains(.command) {
             switch event.keyCode {

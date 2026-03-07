@@ -30,6 +30,11 @@ final class AppViewModel: ObservableObject {
     // Batch project selection for regeneration
     @Published var selectedProjects: Set<String> = []
 
+    // Command Palette
+    @Published var showCommandPalette = false
+    @Published var commandPaletteQuery = ""
+    @Published var selectedCommandIndex = 0
+
     // Commit detail for inspector
     @Published var selectedCommitDetail: GitCommitDetail?
     @Published var isLoadingCommitDetail = false
@@ -799,4 +804,227 @@ final class AppViewModel: ObservableObject {
     func toggleFavoritesFilter() {
         showFavoritesOnly.toggle()
     }
+
+    // MARK: - Command Palette
+
+    func toggleCommandPalette() {
+        showCommandPalette.toggle()
+        if showCommandPalette {
+            commandPaletteQuery = ""
+            selectedCommandIndex = 0
+        }
+    }
+
+    func closeCommandPalette() {
+        showCommandPalette = false
+        commandPaletteQuery = ""
+    }
+
+    func selectNextCommand() {
+        let results = commandPaletteResults
+        if !results.isEmpty {
+            selectedCommandIndex = (selectedCommandIndex + 1) % results.count
+        }
+    }
+
+    func selectPreviousCommand() {
+        let results = commandPaletteResults
+        if !results.isEmpty {
+            selectedCommandIndex = (selectedCommandIndex - 1 + results.count) % results.count
+        }
+    }
+
+    func executeSelectedCommand() {
+        let results = commandPaletteResults
+        guard selectedCommandIndex < results.count else { return }
+        let command = results[selectedCommandIndex]
+        executeCommand(command)
+    }
+
+    func executeCommand(_ command: CommandPaletteItem) {
+        closeCommandPalette()
+
+        switch command.action {
+        case .switchToPeriod(let period):
+            changePeriod(period)
+        case .selectRepo(let repoPath):
+            selectedRepoPaths = [repoPath]
+            Task { await fetchSummary() }
+        case .searchCommit(let commit):
+            searchText = commit.subject
+            isSearchFocused = true
+        case .searchProject(let project):
+            searchText = project.repo
+            isSearchFocused = true
+        case .searchAuthor(let author):
+            selectedAuthors = [author]
+        case .openSettings:
+            showSettings = true
+        case .refresh:
+            Task { await regenerateAllSummaries() }
+        case .exportClipboard:
+            exportSummaryToClipboard()
+        case .exportFile:
+            exportSummaryToFile()
+        case .savePreset:
+            showSavePresetSheet = true
+        case .toggleFavorites:
+            toggleFavoritesFilter()
+        case .clearFilters:
+            clearAllFilters()
+        case .selectAllRepos:
+            selectAll()
+        case .deselectAllRepos:
+            deselectAll()
+        case .viewPreset(let preset):
+            applyPreset(preset)
+        case .toggleFavoriteRepo(let repoPath):
+            toggleFavorite(repoPath)
+        case .openProjectInFinder(let repoPath):
+            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: repoPath)
+        }
+    }
+
+    var commandPaletteResults: [CommandPaletteItem] {
+        let query = commandPaletteQuery.lowercased()
+        var results: [CommandPaletteItem] = []
+
+        // Actions (always show first)
+        let actions: [CommandPaletteItem] = [
+            CommandPaletteItem(title: "Refresh All Summaries", subtitle: "Regenerate all project and overall summaries", icon: "arrow.clockwise", action: .refresh),
+            CommandPaletteItem(title: "Export to Clipboard", subtitle: "Copy summary as Markdown", icon: "doc.on.clipboard", action: .exportClipboard),
+            CommandPaletteItem(title: "Export to File", subtitle: "Save summary as Markdown file", icon: "square.and.arrow.down", action: .exportFile),
+            CommandPaletteItem(title: "Open Settings", subtitle: "Configure Ollama model and preferences", icon: "gear", action: .openSettings),
+            CommandPaletteItem(title: "Save Current View as Preset", subtitle: "Save current repos and period", icon: "bookmark", action: .savePreset),
+            CommandPaletteItem(title: "Show Favorites Only", subtitle: "Filter to favorited commits", icon: "star", action: .toggleFavorites),
+            CommandPaletteItem(title: "Clear All Filters", subtitle: "Reset filters and search", icon: "xmark.circle", action: .clearFilters),
+            CommandPaletteItem(title: "Select All Repositories", subtitle: "Include all repos in summary", icon: "checkmark.circle", action: .selectAllRepos),
+            CommandPaletteItem(title: "Deselect All Repositories", subtitle: "Clear repo selection", icon: "circle", action: .deselectAllRepos),
+        ]
+
+        // Time periods
+        let periods: [CommandPaletteItem] = [
+            CommandPaletteItem(title: "Last 24 Hours", subtitle: "Show commits from past day", icon: "clock", action: .switchToPeriod(.oneDay)),
+            CommandPaletteItem(title: "Past Week", subtitle: "Show commits from past 7 days", icon: "calendar", action: .switchToPeriod(.oneWeek)),
+            CommandPaletteItem(title: "Past 2 Weeks", subtitle: "Show commits from past 14 days", icon: "calendar.badge.clock", action: .switchToPeriod(.twoWeeks)),
+            CommandPaletteItem(title: "Past Month", subtitle: "Show commits from past 30 days", icon: "calendar.badge.month", action: .switchToPeriod(.oneMonth)),
+            CommandPaletteItem(title: "Past 3 Months", subtitle: "Show commits from past 90 days", icon: "chart.bar.doc.horizontal", action: .switchToPeriod(.threeMonths)),
+            CommandPaletteItem(title: "Past 6 Months", subtitle: "Show commits from past 180 days", icon: "calendar.badge.exclamationmark", action: .switchToPeriod(.sixMonths)),
+            CommandPaletteItem(title: "Past Year", subtitle: "Show commits from past year", icon: "calendar.circle", action: .switchToPeriod(.oneYear)),
+        ]
+
+        // Filter actions/results based on query
+        let filteredActions = query.isEmpty ? actions : actions.filter {
+            $0.title.lowercased().contains(query) || $0.subtitle.lowercased().contains(query)
+        }
+        results.append(contentsOf: filteredActions)
+
+        // Time periods (only show when query matches)
+        if query.isEmpty || periods.contains(where: { $0.title.lowercased().contains(query) }) {
+            let filteredPeriods = query.isEmpty ? periods : periods.filter {
+                $0.title.lowercased().contains(query)
+            }
+            results.append(contentsOf: filteredPeriods)
+        }
+
+        // Repositories (filter by query)
+        if !query.isEmpty {
+            // Search matching repos
+            let matchingRepos = repos.filter {
+                $0.name.lowercased().contains(query)
+            }
+            for repo in matchingRepos.prefix(5) {
+                results.append(CommandPaletteItem(
+                    title: repo.name,
+                    subtitle: "Switch to \(repo.name)",
+                    icon: "folder",
+                    action: .selectRepo(repo.path)
+                ))
+            }
+
+            // Search matching commits
+            let matchingCommits = commits.filter {
+                $0.subject.lowercased().contains(query)
+            }.prefix(5)
+            for commit in matchingCommits {
+                results.append(CommandPaletteItem(
+                    title: String(commit.subject.prefix(60)),
+                    subtitle: "\(commit.repo) - \(commit.date.formatted(.dateTime.month().day()))",
+                    icon: "arrow.triangle.branch",
+                    action: .searchCommit(commit)
+                ))
+            }
+
+            // Search matching authors
+            let matchingAuthors = availableAuthors.filter {
+                $0.lowercased().contains(query)
+            }.prefix(3)
+            for author in matchingAuthors {
+                let count = authorCommitCounts[author] ?? 0
+                results.append(CommandPaletteItem(
+                    title: author,
+                    subtitle: "Filter by \(count) commits",
+                    icon: "person",
+                    action: .searchAuthor(author)
+                ))
+            }
+
+            // Favorites
+            if query.contains("star") || query.contains("favorite") {
+                for repo in favoriteReposList.prefix(3) {
+                    results.append(CommandPaletteItem(
+                        title: repo.name,
+                        subtitle: "Favorite repo",
+                        icon: "star.fill",
+                        action: .toggleFavoriteRepo(repo.path)
+                    ))
+                }
+            }
+
+            // Presets
+            let matchingPresets = presets.filter {
+                $0.name.lowercased().contains(query)
+            }
+            for preset in matchingPresets.prefix(3) {
+                results.append(CommandPaletteItem(
+                    title: preset.name,
+                    subtitle: "Apply preset",
+                    icon: "bookmark.fill",
+                    action: .viewPreset(preset)
+                ))
+            }
+        }
+
+        return results
+    }
+}
+
+// MARK: - Command Palette Item
+
+struct CommandPaletteItem: Identifiable {
+    let id = UUID()
+    let title: String
+    let subtitle: String
+    let icon: String
+    let action: CommandPaletteAction
+}
+
+enum CommandPaletteAction {
+    case switchToPeriod(TimePeriod)
+    case selectRepo(String)
+    case searchCommit(GitCommit)
+    case searchProject(ProjectSummary)
+    case searchAuthor(String)
+    case openSettings
+    case refresh
+    case exportClipboard
+    case exportFile
+    case savePreset
+    case toggleFavorites
+    case clearFilters
+    case selectAllRepos
+    case deselectAllRepos
+    case viewPreset(ViewPreset)
+    case toggleFavoriteRepo(String)
+    case openProjectInFinder(String)
 }

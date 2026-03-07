@@ -18,6 +18,13 @@ struct DevSummaryApp: App {
             CommandGroup(replacing: .newItem) {}
 
             CommandMenu("View") {
+                Button("Command Palette") {
+                    viewModel.toggleCommandPalette()
+                }
+                .keyboardShortcut("p", modifiers: [.command, .shift])
+
+                Divider()
+
                 Button("Refresh Summaries") {
                     Task { await viewModel.regenerateAllSummaries() }
                 }
