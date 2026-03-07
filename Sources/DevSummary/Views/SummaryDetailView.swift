@@ -169,22 +169,90 @@ struct SummaryDetailView: View {
 
     private var recentCommitsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Recent Commits")
-                .font(.system(size: 17, weight: .semibold))
+            HStack {
+                Text("Recent Commits")
+                    .font(.system(size: 17, weight: .semibold))
 
-            VStack(spacing: 0) {
-                ForEach(Array(commits.prefix(50))) { commit in
-                    CommitRow(commit: commit)
-                    if commit.id != commits.prefix(50).last?.id {
-                        Divider().padding(.leading, 28)
+                Spacer()
+
+                // Commit type filter
+                if !viewModel.availableCommitTypes.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(Array(CommitType.allCases), id: \.self) { type in
+                            if viewModel.availableCommitTypes.contains(type) {
+                                CommitTypeFilterChip(
+                                    type: type,
+                                    isSelected: viewModel.selectedCommitTypes.contains(type)
+                                ) {
+                                    viewModel.toggleCommitTypeFilter(type)
+                                }
+                            }
+                        }
+
+                        if !viewModel.selectedCommitTypes.isEmpty {
+                            Button {
+                                viewModel.clearCommitTypeFilters()
+                            } label: {
+                                Text("Clear")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Clear all filters")
+                        }
                     }
                 }
+
+                Spacer()
+
+                // Export button
+                Button {
+                    viewModel.exportSummaryToClipboard()
+                } label: {
+                    Label("Export", systemImage: "doc.on.clipboard")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Export summary to clipboard as Markdown")
             }
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(.quaternary, lineWidth: 1)
-            )
+
+            let filteredCommits = viewModel.filteredCommits
+
+            if filteredCommits.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.tertiary)
+                    Text("No commits match the selected filters")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(40)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(Array(filteredCommits.prefix(50))) { commit in
+                        CommitRow(commit: commit)
+                        if commit.id != filteredCommits.prefix(50).last?.id {
+                            Divider().padding(.leading, 28)
+                        }
+                    }
+                }
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(.quaternary, lineWidth: 1)
+                )
+
+                if filteredCommits.count > 50 {
+                    Text("Showing 50 of \(filteredCommits.count) commits")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 4)
+                }
+            }
         }
     }
 }
@@ -373,6 +441,43 @@ struct CommitTypeTag: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 3)
             .background(tagColor.opacity(0.12), in: Capsule())
+    }
+}
+
+// MARK: - Commit Type Filter Chip
+
+struct CommitTypeFilterChip: View {
+    let type: CommitType
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    private var tagColor: Color {
+        switch type {
+        case .feature: return .blue
+        case .fix: return .red
+        case .refactor: return .purple
+        case .docs: return .teal
+        case .test: return .green
+        case .style: return .pink
+        case .deps: return .orange
+        case .config: return .yellow
+        case .remove: return .red
+        case .setup: return .green
+        case .other: return .gray
+        }
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            Text(type.label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isSelected ? .white : tagColor)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(isSelected ? tagColor : tagColor.opacity(0.12), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .help("Filter by \(type.label)")
     }
 }
 

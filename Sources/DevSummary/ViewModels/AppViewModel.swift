@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -14,6 +15,24 @@ final class AppViewModel: ObservableObject {
     @Published var availableModels: [String] = []
     @Published var selectedModel: String = AppSettings.shared.ollamaModel
     @Published var showSettings = false
+    @Published var selectedCommitTypes: Set<CommitType> = []
+
+    // Filtered commits based on selected commit types
+    var filteredCommits: [GitCommit] {
+        if selectedCommitTypes.isEmpty {
+            return commits
+        }
+        return commits.filter { selectedCommitTypes.contains(CommitSummarizer.categorize($0.subject)) }
+    }
+
+    // All commit types present in current commits
+    var availableCommitTypes: Set<CommitType> {
+        var types: Set<CommitType> = []
+        for commit in commits {
+            types.insert(CommitSummarizer.categorize(commit.subject))
+        }
+        return types
+    }
 
     private let gitService = GitService()
     private let ollamaService = OllamaService()
@@ -279,6 +298,46 @@ final class AppViewModel: ObservableObject {
     func changePeriod(_ newPeriod: TimePeriod) {
         period = newPeriod
         Task { await fetchSummary() }
+    }
+
+    func toggleCommitTypeFilter(_ type: CommitType) {
+        if selectedCommitTypes.contains(type) {
+            selectedCommitTypes.remove(type)
+        } else {
+            selectedCommitTypes.insert(type)
+        }
+    }
+
+    func clearCommitTypeFilters() {
+        selectedCommitTypes.removeAll()
+    }
+
+    func exportSummaryToClipboard() {
+        guard let summary = summary else { return }
+
+        var markdown = "# Dev Summary\n\n"
+        markdown += "Generated \(Date().formatted(.dateTime.weekday(.wide).month(.wide).day().year()))\n\n"
+
+        if let overallSummary = summary.overallAISummary {
+            markdown += "## AI Summary\n\n\(overallSummary)\n\n"
+        }
+
+        markdown += "## Stats\n\n"
+        markdown += "- **Total Commits:** \(summary.totalCommits)\n"
+        markdown += "- **Active Repos:** \(summary.activeRepos)\n"
+        markdown += "- **Active Days:** \(summary.activeDays)\n\n"
+
+        markdown += "## Projects\n\n"
+        for project in summary.projectSummaries {
+            markdown += "### \(project.repo)\n"
+            if let aiSummary = project.aiSummary {
+                markdown += "\(aiSummary)\n"
+            }
+            markdown += "- \(project.commitCount) commits\n\n"
+        }
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(markdown, forType: .string)
     }
 
     func updateModel(_ model: String) {
