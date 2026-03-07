@@ -63,6 +63,62 @@ enum CommitType: String, CaseIterable {
     }
 }
 
+enum SummaryStyle: String, CaseIterable, Identifiable {
+    case concise = "concise"
+    case detailed = "detailed"
+    case technical = "technical"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .concise: return "Concise"
+        case .detailed: return "Detailed"
+        case .technical: return "Technical"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .concise: return "Brief 2-3 sentence summaries"
+        case .detailed: return "Comprehensive multi-paragraph summaries"
+        case .technical: return "Technical focus with implementation details"
+        }
+    }
+}
+
+enum SummaryLength: String, CaseIterable, Identifiable {
+    case short = "short"
+    case medium = "medium"
+    case long = "long"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .short: return "Short"
+        case .medium: return "Medium"
+        case .long: return "Long"
+        }
+    }
+
+    var maxTokens: Int {
+        switch self {
+        case .short: return 150
+        case .medium: return 300
+        case .long: return 600
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .short: return "~150 tokens"
+        case .medium: return "~300 tokens"
+        case .long: return "~600 tokens"
+        }
+    }
+}
+
 enum TimePeriod: String, CaseIterable, Identifiable {
     case oneWeek = "1w"
     case twoWeeks = "2w"

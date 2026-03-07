@@ -10,6 +10,8 @@ final class AppSettings: @unchecked Sendable {
         static let ollamaHost = "ollamaHost"
         static let ollamaPort = "ollamaPort"
         static let scanPaths = "scanPaths"
+        static let summaryStyle = "summaryStyle"
+        static let summaryLength = "summaryLength"
     }
 
     var ollamaModel: String {
@@ -38,6 +40,28 @@ final class AppSettings: @unchecked Sendable {
             return Self.defaultScanPaths
         }
         set { defaults.set(newValue, forKey: Keys.scanPaths) }
+    }
+
+    var summaryStyle: SummaryStyle {
+        get {
+            guard let raw = defaults.string(forKey: Keys.summaryStyle),
+                  let style = SummaryStyle(rawValue: raw) else {
+                return .concise
+            }
+            return style
+        }
+        set { defaults.set(newValue.rawValue, forKey: Keys.summaryStyle) }
+    }
+
+    var summaryLength: SummaryLength {
+        get {
+            guard let raw = defaults.string(forKey: Keys.summaryLength),
+                  let length = SummaryLength(rawValue: raw) else {
+                return .medium
+            }
+            return length
+        }
+        set { defaults.set(newValue.rawValue, forKey: Keys.summaryLength) }
     }
 
     static var defaultScanPaths: [String] {

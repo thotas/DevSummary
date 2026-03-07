@@ -16,6 +16,8 @@ actor CacheService {
         let commitCount: Int
         let generatedAt: Date
         let period: String
+        let style: String
+        let length: String
     }
 
     struct CachedOverallSummary: Codable {
@@ -23,6 +25,8 @@ actor CacheService {
         let projectHashes: [String: String]
         let generatedAt: Date
         let period: String
+        let style: String
+        let length: String
     }
 
     init() {
@@ -42,34 +46,52 @@ actor CacheService {
 
     func getCachedProjectSummary(repoPath: String, latestCommitHash: String, period: String) -> CachedProjectSummary? {
         guard let cached = cache.projects[repoPath] else { return nil }
-        guard cached.lastCommitHash == latestCommitHash && cached.period == period else { return nil }
+        let style = AppSettings.shared.summaryStyle.rawValue
+        let length = AppSettings.shared.summaryLength.rawValue
+        guard cached.lastCommitHash == latestCommitHash &&
+              cached.period == period &&
+              cached.style == style &&
+              cached.length == length else { return nil }
         return cached
     }
 
     func cacheProjectSummary(repoPath: String, summary: String, readme: String?, lastCommitHash: String, commitCount: Int, period: String) {
+        let style = AppSettings.shared.summaryStyle.rawValue
+        let length = AppSettings.shared.summaryLength.rawValue
         cache.projects[repoPath] = CachedProjectSummary(
             summary: summary,
             readme: readme,
             lastCommitHash: lastCommitHash,
             commitCount: commitCount,
             generatedAt: Date(),
-            period: period
+            period: period,
+            style: style,
+            length: length
         )
         save()
     }
 
     func getCachedOverallSummary(projectHashes: [String: String], period: String) -> CachedOverallSummary? {
         guard let cached = cache.overallSummary else { return nil }
-        guard cached.period == period && cached.projectHashes == projectHashes else { return nil }
+        let style = AppSettings.shared.summaryStyle.rawValue
+        let length = AppSettings.shared.summaryLength.rawValue
+        guard cached.period == period &&
+              cached.projectHashes == projectHashes &&
+              cached.style == style &&
+              cached.length == length else { return nil }
         return cached
     }
 
     func cacheOverallSummary(summary: String, projectHashes: [String: String], period: String) {
+        let style = AppSettings.shared.summaryStyle.rawValue
+        let length = AppSettings.shared.summaryLength.rawValue
         cache.overallSummary = CachedOverallSummary(
             summary: summary,
             projectHashes: projectHashes,
             generatedAt: Date(),
-            period: period
+            period: period,
+            style: style,
+            length: length
         )
         save()
     }
