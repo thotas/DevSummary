@@ -12,6 +12,7 @@ struct SummaryDetailView: View {
                 headerSection
                 overallSummaryCard
                 statsRow
+                contributionSection
                 activitySection
                 projectsSection
                 recentCommitsSection
@@ -141,6 +142,18 @@ struct SummaryDetailView: View {
             StatCard(value: summary.totalCommits, label: "Commits", color: .blue)
             StatCard(value: summary.activeRepos, label: "Active Repos", color: .green)
             StatCard(value: summary.activeDays, label: "Active Days", color: .purple)
+        }
+    }
+
+    // MARK: - Contribution Calendar
+
+    @ViewBuilder
+    private var contributionSection: some View {
+        if !commits.isEmpty {
+            VStack(alignment: .leading, spacing: 16) {
+                ContributionCalendar(commits: commits)
+                StreakInfoView(commits: commits)
+            }
         }
     }
 
