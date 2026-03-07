@@ -291,3 +291,44 @@ struct ViewPreset: Identifiable, Codable, Equatable {
         self.periodRaw = period.rawValue
     }
 }
+
+// MARK: - Commit Detail
+
+struct FileChange: Identifiable, Hashable {
+    let id = UUID()
+    let path: String
+    let additions: Int
+    let deletions: Int
+    let status: FileChangeStatus
+}
+
+enum FileChangeStatus: String {
+    case added = "A"
+    case modified = "M"
+    case deleted = "D"
+    case renamed = "R"
+    case copied = "C"
+    case untracked = "?"
+}
+
+struct GitCommitDetail: Identifiable {
+    let id = UUID()
+    let commit: GitCommit
+    let files: [FileChange]
+    let diff: String?
+    let aiExplanation: String?
+    let explanationStyle: SummaryStyle
+    let isGenerating: Bool
+
+    var totalAdditions: Int {
+        files.reduce(0) { $0 + $1.additions }
+    }
+
+    var totalDeletions: Int {
+        files.reduce(0) { $0 + $1.deletions }
+    }
+
+    var changedFilesCount: Int {
+        files.count
+    }
+}

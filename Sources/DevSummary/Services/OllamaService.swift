@@ -175,6 +175,115 @@ actor OllamaService {
         return try await generate(model: AppSettings.shared.ollamaModel, prompt: prompt, maxTokens: maxTokens)
     }
 
+    func summarizeCommit(commit: GitCommit, diff: String?, files: [FileChange], style: SummaryStyle) async throws -> String {
+        var context = "Commit Information:\n"
+        context += "Hash: \(commit.hash)\n"
+        context += "Author: \(commit.author) <\(commit.email)>\n"
+        context += "Date: \(formatDate(commit.date))\n"
+        context += "Subject: \(commit.subject)\n"
+
+        if !commit.body.isEmpty {
+            context += "\nCommit Message:\n\(commit.body)\n"
+        }
+
+        if !files.isEmpty {
+            context += "\nFiles Changed (\(files.count)):\n"
+            for file in files {
+                let statusIcon: String
+                switch file.status {
+                case .added: statusIcon = "+"
+                case .deleted: statusIcon = "-"
+                case .modified: statusIcon = "M"
+                case .renamed: statusIcon = "R"
+                case .copied: statusIcon = "C"
+                case .untracked: statusIcon = "?"
+                }
+                context += "  \(statusIcon) \(file.path) (+\(file.additions)/-\(file.deletions))\n"
+            }
+        }
+
+        if let diff = diff, !diff.isEmpty {
+            let truncatedDiff = String(diff.prefix(8000))
+            context += "\nDiff:\n\(truncatedDiff)\n"
+            if diff.count > 8000 {
+                context += "(diff truncated due to length)\n"
+            }
+        }
+
+        let prompt = buildCommitPrompt(style: style, context: context)
+        let maxTokens: Int
+        switch style {
+        case .concise:
+            maxTokens = 200
+        case .detailed:
+            maxTokens = 400
+        case .technical:
+            maxTokens = 500
+        }
+
+        return try await generate(model: AppSettings.shared.ollamaModel, prompt: prompt, maxTokens: maxTokens)
+    }
+
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    private func buildCommitPrompt(style: SummaryStyle, context: String) -> String {
+        switch style {
+        case .concise:
+            return """
+            You are a code reviewer explaining a git commit in plain English. Based on the commit info below, provide a brief 2-3 sentence explanation of what this commit does and why it matters.
+
+            First sentence: What changed overall.
+            Second sentence: Why this change was made or what problem it solves.
+            Third sentence (optional): Any notable technical details.
+
+            Be specific and avoid generic phrases. No bullet points. No markdown.
+
+            \(context)
+
+            Explanation:
+            """
+        case .detailed:
+            return """
+            You are a senior code reviewer providing a comprehensive explanation of a git commit. Based on the commit info below, explain in detail:
+
+            1. What exactly changed in this commit
+            2. Why this change was made - the problem or need it addresses
+            3. How it was implemented - the approach taken
+            4. Any potential impact or side effects
+            5. Code quality observations if evident
+
+            Be thorough and technical but accessible. No bullet points. No markdown. Use flowing paragraphs.
+
+            \(context)
+
+            Detailed Explanation:
+            """
+        case .technical:
+            return """
+            You are a principal engineer providing a technical analysis of a git commit. Based on the commit info below, provide a deep technical analysis covering:
+
+            1. Exact code changes - what was added, modified, or removed
+            2. Technical implementation details and approach
+            3. Files affected and their roles in the codebase
+            4. Any architectural or design pattern implications
+            5. Dependencies or integration points affected
+            6. Potential performance, security, or maintainability implications
+            7. Code quality assessment
+
+            Use precise technical terminology. Reference specific files, functions, or APIs when evident. No bullet points. No markdown. Use flowing technical prose.
+
+            \(context)
+
+            Technical Analysis:
+            """
+        }
+    }
+
     private func buildOverallPrompt(style: SummaryStyle, context: String) -> String {
         switch style {
         case .concise:

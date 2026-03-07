@@ -128,6 +128,61 @@ actor GitService {
         return runGit(args: args, in: repoPath)?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    func getCommitDiff(repoPath: String, hash: String) -> String? {
+        let args = ["diff", "\(hash)^", hash, "--stat"]
+        return runGit(args: args, in: repoPath)
+    }
+
+    func getCommitFiles(repoPath: String, hash: String) -> [FileChange] {
+        let args = ["diff-tree", "--no-commit-id", "--numstat", "-r", hash]
+        guard let output = runGit(args: args, in: repoPath) else { return [] }
+
+        let lines = output.components(separatedBy: "\n").filter { !$0.isEmpty }
+        var files: [FileChange] = []
+
+        for line in lines {
+            let parts = line.split(separator: "\t", omittingEmptySubsequences: false)
+            guard parts.count >= 3 else { continue }
+
+            let additions = Int(parts[0]) ?? 0
+            let deletions = Int(parts[1]) ?? 0
+            let path = String(parts[2])
+
+            let status = getFileStatus(repoPath: repoPath, hash: hash, path: path)
+
+            files.append(FileChange(
+                path: path,
+                additions: additions,
+                deletions: deletions,
+                status: status
+            ))
+        }
+
+        return files
+    }
+
+    private func getFileStatus(repoPath: String, hash: String, path: String) -> FileChangeStatus {
+        let args = ["show", "--format=%s", "-s", "\(hash)", "--", path]
+        guard let output = runGit(args: args, in: repoPath) else { return .modified }
+
+        if output.contains("A ") || output.hasPrefix("Added:") {
+            return .added
+        } else if output.contains("D ") || output.hasPrefix("Deleted:") {
+            return .deleted
+        } else if output.contains("R ") || output.hasPrefix("Renamed:") {
+            return .renamed
+        } else if output.contains("C ") || output.hasPrefix("Copied:") {
+            return .copied
+        }
+
+        return .modified
+    }
+
+    func getFullDiff(repoPath: String, hash: String) -> String? {
+        let args = ["diff", "\(hash)^", hash]
+        return runGit(args: args, in: repoPath)
+    }
+
     private nonisolated func runGit(args: [String], in directory: String) -> String? {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")

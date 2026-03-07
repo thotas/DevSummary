@@ -23,7 +23,20 @@ struct SummaryDetailView: View {
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .sheet(item: $viewModel.selectedCommit) { commit in
-            CommitDetailPopover(commit: commit)
+            CommitDetailPopover(
+                commit: commit,
+                commitDetail: viewModel.selectedCommitDetail,
+                onRegenerate: { style in
+                    Task {
+                        await viewModel.regenerateCommitExplanation(style: style)
+                    }
+                }
+            )
+            .onAppear {
+                Task {
+                    await viewModel.loadCommitDetail(for: commit)
+                }
+            }
         }
         .onChange(of: viewModel.isSearchFocused) { _, newValue in
             isSearchFocused = newValue

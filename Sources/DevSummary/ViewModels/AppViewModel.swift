@@ -26,6 +26,10 @@ final class AppViewModel: ObservableObject {
     @Published var showSavePresetSheet = false
     @Published var newPresetName = ""
 
+    // Commit detail for inspector
+    @Published var selectedCommitDetail: GitCommitDetail?
+    @Published var isLoadingCommitDetail = false
+
     // Filtered commits based on selected commit types and search text
     var filteredCommits: [GitCommit] {
         var result = commits
@@ -147,12 +151,14 @@ final class AppViewModel: ObservableObject {
     private let gitService = GitService()
     private let ollamaService = OllamaService()
     private let cacheService = CacheService()
+    private let commitDetailService: CommitDetailService
 
     // Track per-project generation state
     private var generatingProjects: Set<String> = []
     private var isGeneratingOverall = false
 
     init() {
+        self.commitDetailService = CommitDetailService(gitService: gitService, ollamaService: ollamaService)
         loadPresets()
         Task {
             async let repoScan: Void = scanRepos()
@@ -509,6 +515,25 @@ final class AppViewModel: ObservableObject {
 
     func selectCommit(_ commit: GitCommit?) {
         selectedCommit = commit
+    }
+
+    func loadCommitDetail(for commit: GitCommit, style: SummaryStyle = .concise) async {
+        isLoadingCommitDetail = true
+        selectedCommitDetail = nil
+
+        let detail = await commitDetailService.getCommitDetail(commit: commit, style: style)
+        selectedCommitDetail = detail
+        isLoadingCommitDetail = false
+    }
+
+    func regenerateCommitExplanation(style: SummaryStyle) async {
+        guard let commit = selectedCommit else { return }
+
+        isLoadingCommitDetail = true
+
+        let detail = await commitDetailService.regenerateExplanation(commit: commit, style: style)
+        selectedCommitDetail = detail
+        isLoadingCommitDetail = false
     }
 
     func exportSummaryToClipboard() {
