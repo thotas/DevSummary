@@ -53,9 +53,9 @@ struct SidebarView: View {
             }
 
             // Favorites Section
-            if !viewModel.favoriteReposList.isEmpty {
+            if !viewModel.sortedFavoriteRepos.isEmpty {
                 Section {
-                    ForEach(viewModel.favoriteReposList) { repo in
+                    ForEach(viewModel.sortedFavoriteRepos) { repo in
                         RepoRow(
                             repo: repo,
                             isSelected: viewModel.selectedRepoPaths.contains(repo.path),
@@ -73,7 +73,7 @@ struct SidebarView: View {
                             .font(.system(size: 10))
                         Text("Favorites")
                         Spacer()
-                        Text("\(viewModel.favoriteReposList.count)")
+                        Text("\(viewModel.sortedFavoriteRepos.count)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -82,7 +82,7 @@ struct SidebarView: View {
 
             // All Repositories Section
             Section {
-                ForEach(viewModel.nonFavoriteRepos) { repo in
+                ForEach(viewModel.sortedNonFavoriteRepos) { repo in
                     RepoRow(
                         repo: repo,
                         isSelected: viewModel.selectedRepoPaths.contains(repo.path),
@@ -93,6 +93,24 @@ struct SidebarView: View {
                         viewModel.toggleFavorite(repo.path)
                     }
                 }
+
+                // Sort picker at bottom of repos section
+                HStack {
+                    Text("Sort by:")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Picker("", selection: Binding(
+                        get: { viewModel.repoSortOption },
+                        set: { viewModel.setRepoSortOption($0) }
+                    )) {
+                        ForEach(RepoSortOption.allCases) { option in
+                            Text(option.label).tag(option)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+                .padding(.top, 4)
             } header: {
                 HStack {
                     Text("Repositories (\(viewModel.selectedRepoPaths.count)/\(viewModel.repos.count))")
@@ -392,9 +410,14 @@ struct QuickActionsToolbar: View {
             ToolbarButton(
                 icon: "arrow.clockwise",
                 label: "Refresh",
-                action: { Task { await viewModel.fetchSummary() } }
+                action: {
+                    Task {
+                        // Force a full rescan to find new repos
+                        await viewModel.scanRepos()
+                    }
+                }
             )
-            .disabled(viewModel.isLoading)
+            .disabled(viewModel.isScanning)
 
             ToolbarButton(
                 icon: "doc.on.clipboard",

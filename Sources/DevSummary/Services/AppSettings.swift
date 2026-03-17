@@ -17,6 +17,7 @@ final class AppSettings: @unchecked Sendable {
         static let favoriteRepos = "favoriteRepos"
         static let commitFavorites = "commitFavorites"
         static let commitNotes = "commitNotes"
+        static let repoSortOption = "repoSortOption"
     }
 
     var ollamaModel: String {
@@ -90,6 +91,17 @@ final class AppSettings: @unchecked Sendable {
             return UUID(uuidString: raw)
         }
         set { defaults.set(newValue?.uuidString, forKey: Keys.lastUsedPresetId) }
+    }
+
+    var repoSortOption: RepoSortOption {
+        get {
+            guard let raw = defaults.string(forKey: Keys.repoSortOption),
+                  let option = RepoSortOption(rawValue: raw) else {
+                return .lastCommit
+            }
+            return option
+        }
+        set { defaults.set(newValue.rawValue, forKey: Keys.repoSortOption) }
     }
 
     var favoriteRepos: Set<String> {

@@ -191,6 +191,16 @@ DevSummary/
 - [ ] Code signing and notarization
 - [ ] Scheduled weekly summary with notifications
 
+## Customizing the App Icon
+
+The app icon is generated using a Python script that creates a professional gradient-based design. To regenerate the icon:
+
+```bash
+python3 generate_icon.py
+iconutil -c icns Assets/AppIcon.iconset -o Assets/AppIcon.icns
+./build.sh
+```
+
 ## License
 
 MIT

@@ -3,5 +3,6 @@
 *.xcodeproj
 DerivedData/
 DevSummary.app/
-Assets/AppIcon.iconset/
-Assets/icon_source.png
+# Keep the icon source and generated icons for the app
+# Assets/icon_source.png
+# Assets/AppIcon.iconset/

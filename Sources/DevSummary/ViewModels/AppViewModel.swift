@@ -21,6 +21,7 @@ final class AppViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var searchMode: SearchMode = .all
     @Published var sortOption: CommitSortOption = .date
+    @Published var repoSortOption: RepoSortOption = .lastCommit
     @Published var selectedCommit: GitCommit?
     @Published var isSearchFocused = false
     @Published var presets: [ViewPreset] = []
@@ -41,6 +42,35 @@ final class AppViewModel: ObservableObject {
 
     // Filter by favorites
     @Published var showFavoritesOnly = false
+
+    // Sorted repos based on repoSortOption
+    var sortedRepos: [GitRepo] {
+        switch repoSortOption {
+        case .lastCommit:
+            return repos.sorted { ($0.latestCommitDate ?? .distantPast) > ($1.latestCommitDate ?? .distantPast) }
+        case .alphabetical:
+            return repos.sorted { $0.name.lowercased() < $1.name.lowercased() }
+        }
+    }
+
+    // Sorted favorites and non-favorites based on sort option
+    var sortedFavoriteRepos: [GitRepo] {
+        switch repoSortOption {
+        case .lastCommit:
+            return favoriteReposList.sorted { ($0.latestCommitDate ?? .distantPast) > ($1.latestCommitDate ?? .distantPast) }
+        case .alphabetical:
+            return favoriteReposList.sorted { $0.name.lowercased() < $1.name.lowercased() }
+        }
+    }
+
+    var sortedNonFavoriteRepos: [GitRepo] {
+        switch repoSortOption {
+        case .lastCommit:
+            return nonFavoriteRepos.sorted { ($0.latestCommitDate ?? .distantPast) > ($1.latestCommitDate ?? .distantPast) }
+        case .alphabetical:
+            return nonFavoriteRepos.sorted { $0.name.lowercased() < $1.name.lowercased() }
+        }
+    }
 
     // Filtered commits based on selected commit types, authors, search text, and favorites
     var filteredCommits: [GitCommit] {
@@ -202,6 +232,7 @@ final class AppViewModel: ObservableObject {
 
     init() {
         self.commitDetailService = CommitDetailService(gitService: gitService, ollamaService: ollamaService)
+        self.repoSortOption = AppSettings.shared.repoSortOption
         loadPresets()
         Task {
             async let repoScan: Void = scanRepos()
@@ -276,7 +307,17 @@ final class AppViewModel: ObservableObject {
             ))
         }
 
-        projectSummaries.sort { $0.latestCommit > $1.latestCommit }
+        // Sort project summaries to follow sidebar order (sorted favorites + sorted non-favorites)
+        let orderedPaths = (sortedFavoriteRepos.map(\.path) + sortedNonFavoriteRepos.map(\.path))
+            .filter { selectedRepoPaths.contains($0) }
+
+        projectSummaries.sort { p1, p2 in
+            guard let idx1 = orderedPaths.firstIndex(of: p1.repoPath),
+                  let idx2 = orderedPaths.firstIndex(of: p2.repoPath) else {
+                return p1.latestCommit > p2.latestCommit
+            }
+            return idx1 < idx2
+        }
 
         // Check overall cache
         let projectHashes = Dictionary(uniqueKeysWithValues: projectSummaries.map { ($0.repoPath, $0.latestCommitHash) })
@@ -557,6 +598,11 @@ final class AppViewModel: ObservableObject {
 
     func setSortOption(_ option: CommitSortOption) {
         sortOption = option
+    }
+
+    func setRepoSortOption(_ option: RepoSortOption) {
+        repoSortOption = option
+        AppSettings.shared.repoSortOption = option
     }
 
     func clearAllFilters() {

@@ -122,6 +122,27 @@ enum CommitSortOption: String, CaseIterable, Identifiable {
     }
 }
 
+enum RepoSortOption: String, CaseIterable, Identifiable {
+    case lastCommit = "lastCommit"
+    case alphabetical = "alphabetical"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .lastCommit: return "Last Commit"
+        case .alphabetical: return "A-Z"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .lastCommit: return "clock"
+        case .alphabetical: return "textformat.abc"
+        }
+    }
+}
+
 enum SummaryStyle: String, CaseIterable, Identifiable {
     case concise = "concise"
     case detailed = "detailed"
